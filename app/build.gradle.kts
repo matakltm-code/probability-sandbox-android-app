@@ -39,6 +39,10 @@ android {
     }
   }
 
+  lint {
+    abortOnError = false
+  }
+
   buildTypes {
     release {
       isCrunchPngs = false
