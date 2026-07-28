@@ -1,0 +1,8 @@
+{
+  "name": "Probability Sandbox",
+  "description": "Customized full-screen browser wrapper for Probability Sandbox.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
