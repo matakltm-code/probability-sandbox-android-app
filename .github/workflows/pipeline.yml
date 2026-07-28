@@ -1,54 +1,57 @@
-name: Android CI/CD
+name: Main Pipeline
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  # 1. Run Lint & Test in Parallel by calling the reusable workflows
+  lint:
+    name: Run Lint
+    uses: ./.github/workflows/lint.yml
 
+  test:
+    name: Run Tests
+    uses: ./.github/workflows/test.yml
+
+  # 2. Run the Build and Release sequentially, ONLY if lint & test pass
+  release:
+    name: Build & Release
+    needs: [lint, test]
+    runs-on: ubuntu-latest
     steps:
     - name: Checkout Repository
       uses: actions/checkout@v4
-
+      
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-
+        
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
-
-    # Generates the Gradle wrapper since it is not included in the repository by default
+      
     - name: Generate Gradle Wrapper
       run: gradle wrapper
-
-    - name: Run Lint
-      run: ./gradlew lintDebug
-
-    - name: Type Check & Unit Tests
-      # Running tests will compile the project, acting as a robust type and syntax check
-      run: ./gradlew testDebugUnitTest
-
+      
     - name: Generate Temporary Keystore
-      # Generates a temporary keystore so the release build can succeed out-of-the-box
-      # without needing to configure GitHub Secrets immediately. 
       run: |
         keytool -genkey -v -keystore release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload -storepass temp1234 -keypass temp1234 -dname "CN=GitHub, OU=Actions, O=CI, L=Internet, ST=Global, C=US"
-
+        
     - name: Build Release APK
       env:
         KEYSTORE_PATH: ${{ github.workspace }}/release.jks
         STORE_PASSWORD: temp1234
         KEY_PASSWORD: temp1234
       run: ./gradlew assembleRelease
-
-    - name: Upload Release APK
-      uses: actions/upload-artifact@v4
+      
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        name: app-release-apk
-        path: app/build/outputs/apk/release/*.apk
+        tag_name: build-${{ github.run_number }}
+        name: Build ${{ github.run_number }}
+        body: "Automated release containing the latest built APK from the main branch."
+        files: app/build/outputs/apk/release/*.apk
