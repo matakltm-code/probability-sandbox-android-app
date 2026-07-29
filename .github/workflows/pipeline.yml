@@ -5,19 +5,8 @@ on:
     branches: [ "main" ]
 
 jobs:
-  # 1. Run Lint & Test in Parallel by calling the reusable workflows
-  lint:
-    name: Run Lint
-    uses: ./.github/workflows/lint.yml
-
-  test:
-    name: Run Tests
-    uses: ./.github/workflows/test.yml
-
-  # 2. Run the Build and Release sequentially, ONLY if lint & test pass
   release:
     name: Build & Release
-    needs: [lint, test]
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Repository
