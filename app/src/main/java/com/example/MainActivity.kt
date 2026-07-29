@@ -21,10 +21,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -90,19 +92,76 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
     var selectedCssSelector by remember { mutableStateOf("") }
     var selectedText by remember { mutableStateOf("") }
     
+    var isSiteRuleSelectionMode by remember { mutableStateOf(false) }
+    var showSiteRuleDialog by remember { mutableStateOf(false) }
+    
     var activePanelTab by remember { mutableStateOf("Predictor") }
     var isPanelDropdownExpanded by remember { mutableStateOf(false) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val toolProfileDao = remember { AppDatabase.getDatabase(context).toolProfileDao() }
+    val siteRuleDao = remember { AppDatabase.getDatabase(context).siteRuleDao() }
+    val siteRules by siteRuleDao.getAllRules().collectAsState(initial = emptyList())
     val coroutineScope = rememberCoroutineScope()
 
-    LaunchedEffect(isSelectionModeActive) {
-        if (isSelectionModeActive) {
+    LaunchedEffect(isSelectionModeActive, isSiteRuleSelectionMode) {
+        if (isSelectionModeActive || isSiteRuleSelectionMode) {
             webViewRef?.evaluateJavascript(MapperJS.enableScript, null)
         } else {
             webViewRef?.evaluateJavascript(MapperJS.disableScript, null)
         }
+    }
+
+    LaunchedEffect(siteRules) {
+        val js = java.lang.StringBuilder("(function() { ")
+        js.append("var style = document.getElementById('site-rules-style'); ")
+        js.append("if (!style) { style = document.createElement('style'); style.id = 'site-rules-style'; document.head.appendChild(style); } ")
+        val css = java.lang.StringBuilder()
+        siteRules.filter { it.isEnabled }.forEach { rule ->
+            css.append("${rule.cssSelector} { display: none !important; } ")
+        }
+        js.append("style.innerHTML = `${css.toString()}`; ")
+        js.append("})();")
+        webViewRef?.evaluateJavascript(js.toString(), null)
+    }
+
+    if (showSiteRuleDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showSiteRuleDialog = false
+                isSiteRuleSelectionMode = false
+            },
+            title = { Text("Hide this element?", color = Color.White) },
+            text = { 
+                Column {
+                    Text("Path: $selectedCssSelector", color = Color.Gray, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Sample text: $selectedText", color = Color(0xFFE6E1E5))
+                }
+            },
+            containerColor = Color(0xFF2C2C2E),
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            siteRuleDao.insertRule(SiteRule(cssSelector = selectedCssSelector, label = selectedText.take(20)))
+                        }
+                        showSiteRuleDialog = false
+                        isSiteRuleSelectionMode = false
+                    }
+                ) {
+                    Text("Save Rule", color = Color(0xFF4CAF50))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showSiteRuleDialog = false 
+                    isSiteRuleSelectionMode = false
+                }) {
+                    Text("Cancel", color = Color.White)
+                }
+            }
+        )
     }
 
     if (showMappingDialog) {
@@ -530,7 +589,11 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
                                 coroutineScope.launch {
                                     selectedCssSelector = cssSelector
                                     selectedText = text
-                                    showMappingDialog = true
+                                    if (isSiteRuleSelectionMode) {
+                                        showSiteRuleDialog = true
+                                    } else {
+                                        showMappingDialog = true
+                                    }
                                 }
                             }
                         }, "AndroidBridge")
@@ -547,6 +610,17 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
                                 swipeLayout.isRefreshing = false
                                 val title = view.title ?: ""
                                 url?.let { activityLogViewModel.logActivity("Visited site: $it (Title: $title)") }
+                                
+                                val jsRules = java.lang.StringBuilder("(function() { ")
+                                jsRules.append("var style = document.createElement('style'); style.id = 'site-rules-style'; ")
+                                val css = java.lang.StringBuilder()
+                                siteRules.filter { it.isEnabled }.forEach { rule ->
+                                    css.append("${rule.cssSelector} { display: none !important; } ")
+                                }
+                                jsRules.append("style.innerHTML = `${css.toString()}`; document.head.appendChild(style); ")
+                                jsRules.append("})();")
+                                view.evaluateJavascript(jsRules.toString(), null)
+                                
                                 view.evaluateJavascript(
                                     "(function() { " +
                                     "   console.log('Probability Sandbox Engine Active on: ' + window.location.href); " +
@@ -816,21 +890,61 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
                             }
                         }
                         } else {
-                            // Settings Content (Empty State)
-                            Box(
+                            // Settings Content
+                            Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
                                     .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
+                                    .padding(16.dp)
                             ) {
-                                Text(
-                                    text = "No settings available.",
-                                    color = Color(0xFF938F99),
-                                    fontSize = 14.sp,
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Inspect & Hide Elements", color = Color.White, fontSize = 14.sp)
+                                    Switch(
+                                        checked = isSiteRuleSelectionMode,
+                                        onCheckedChange = { isSiteRuleSelectionMode = it },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color(0xFF4CAF50),
+                                            checkedTrackColor = Color(0xFF4CAF50).copy(alpha = 0.5f)
+                                        )
+                                    )
+                                }
+                                
+                                if (siteRules.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text("Saved Rules:", color = Color.Gray, fontSize = 12.sp)
+                                    LazyColumn(modifier = Modifier.heightIn(max = 150.dp)) {
+                                        items(siteRules) { rule ->
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(if (rule.label.isNotBlank()) rule.label else "Element", color = Color.White, fontSize = 12.sp, maxLines = 1)
+                                                    Text(rule.cssSelector, color = Color.Gray, fontSize = 10.sp, maxLines = 1)
+                                                }
+                                                Switch(
+                                                    checked = rule.isEnabled,
+                                                    onCheckedChange = { 
+                                                        coroutineScope.launch { siteRuleDao.updateRule(rule.copy(isEnabled = it)) } 
+                                                    },
+                                                    modifier = Modifier.scale(0.8f)
+                                                )
+                                                IconButton(
+                                                    onClick = { coroutineScope.launch { siteRuleDao.deleteRule(rule) } },
+                                                    modifier = Modifier.size(24.dp)
+                                                ) {
+                                                    Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

@@ -40,10 +40,11 @@ interface ActivityLogDao {
     suspend fun deleteAllLogs()
 }
 
-@Database(entities = [ActivityLog::class, ToolProfile::class], version = 2, exportSchema = false)
+@Database(entities = [ActivityLog::class, ToolProfile::class, SiteRule::class], version = 3, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun activityLogDao(): ActivityLogDao
     abstract fun toolProfileDao(): ToolProfileDao
+    abstract fun siteRuleDao(): SiteRuleDao
 
     companion object {
         @Volatile
