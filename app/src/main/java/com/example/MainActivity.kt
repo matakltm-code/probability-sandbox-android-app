@@ -5,7 +5,6 @@ import android.os.Bundle
 import android.view.ViewGroup
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -78,7 +77,6 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
     var isActivityScreenVisible by remember { mutableStateOf(false) }
     var isDeveloperScreenVisible by remember { mutableStateOf(false) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
-    var swipeRefreshLayoutRef by remember { mutableStateOf<SwipeRefreshLayout?>(null) }
     var isControlPanelExpanded by remember { mutableStateOf(false) }
     var targetUrl by remember { mutableStateOf("https://google.com") }
     var showExitConfirmation by remember { mutableStateOf(false) }
@@ -590,12 +588,6 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
             // Browser Web Layer
             AndroidView(
                 factory = { context ->
-                    val swipeLayout = SwipeRefreshLayout(context).apply {
-                        layoutParams = ViewGroup.LayoutParams(
-                            ViewGroup.LayoutParams.MATCH_PARENT,
-                            ViewGroup.LayoutParams.MATCH_PARENT
-                        )
-                    }
                     val webView = WebView(context).apply {
                         layoutParams = ViewGroup.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -636,7 +628,6 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
                             override fun onPageFinished(view: WebView, url: String?) {
                                 super.onPageFinished(view, url)
                                 isPageLoading = false
-                                swipeLayout.isRefreshing = false
                                 val title = view.title ?: ""
                                 url?.let { activityLogViewModel.logActivity("Visited site: $it (Title: $title)") }
                                 
@@ -668,15 +659,9 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
                         }
                         loadUrl(targetUrl)
                     }
-                    swipeLayout.addView(webView)
-                    swipeLayout.setOnRefreshListener {
-                        webView.reload()
-                    }
                     
                     webViewRef = webView
-                    swipeRefreshLayoutRef = swipeLayout
-                    
-                    swipeLayout
+                    webView
                 },
                 modifier = Modifier.fillMaxSize()
             )

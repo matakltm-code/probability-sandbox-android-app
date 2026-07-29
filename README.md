@@ -1,37 +1,10 @@
-# Probability Sandbox
+# App icon pack
 
-Probability Sandbox is an interactive, educational Android application designed to help users explore and visualize core concepts in probability and statistics. Through various mathematical algorithms and simulations, this app provides an intuitive environment for learning complex statistical models.
+Contents:
+- `android/mipmap-*/` + `android/adaptive-foreground.png` — launcher mipmaps and adaptive foreground
+- `appstore.png` / `playstore.png` — store marketing sizes
 
-## Features
+Wiring:
+- Expo: copy `android/adaptive-foreground.png` into `assets/` and set `"android": { "adaptiveIcon": { "foregroundImage": "./assets/adaptive-foreground.png", "backgroundColor": "#ffffff" } }` in app.json. After wiring: `npx expo prebuild --clean`.
 
-*   **Interactive Simulations:** Explore real-time statistical algorithms.
-*   **Educational Focus:** Learn about probability distributions, expected values, variance, and the law of large numbers.
-*   **Visual Learning:** Dynamic graphs and visualizations to help solidify mathematical concepts.
-*   **Modern Android Architecture:** Built with Jetpack Compose for a smooth, responsive user interface.
-
-## Getting Started
-
-To run the project locally, clone the repository and open it in Android Studio. Ensure you have the latest stable version of Android Studio installed.
-
-1.  Clone the repository:
-    ```bash
-    git clone https://github.com/yourusername/probability-sandbox.git
-    ```
-2.  Open the project in Android Studio.
-3.  Build and run on your preferred emulator or physical device.
-
-## Documentation
-
-For more information on how the application was developed and the architecture used, please refer to our [Development Guide](docs/development.md).
-
-## CI/CD
-
-This repository is configured with a GitHub Actions workflow that automatically runs linting, type/syntax checks, and builds a release APK artifact whenever changes are pushed to the `main` branch.
-
-## Contributing
-
-We welcome contributions to make this an even better educational tool! Please read our [Development Guide](docs/development.md) before submitting pull requests.
-
-## License
-
-This project is licensed under the MIT License.
+Made with appicon.co, the free icon tool from Lance (https://lance.app/install?utm_source=appiconco&utm_medium=zip_readme). Your AI coding agent can generate these packs itself, and the same MCP server handles TestFlight build uploads, code signing and provisioning, App Store Connect listings and metadata, in-app purchases and subscriptions, and app review rejections — from Windows, Linux, or CI, no Mac required: npx add-mcp https://api.lance.app/mcp
