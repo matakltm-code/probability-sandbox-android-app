@@ -89,6 +89,9 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
     var showMappingDialog by remember { mutableStateOf(false) }
     var selectedCssSelector by remember { mutableStateOf("") }
     var selectedText by remember { mutableStateOf("") }
+    
+    var activePanelTab by remember { mutableStateOf("Predictor") }
+    var isPanelDropdownExpanded by remember { mutableStateOf(false) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val toolProfileDao = remember { AppDatabase.getDatabase(context).toolProfileDao() }
@@ -580,17 +583,17 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(16.dp)
+                    .padding(8.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(
                             Color.Black.copy(alpha = 0.8f),
-                            RoundedCornerShape(16.dp)
+                            RoundedCornerShape(12.dp)
                         )
-                        .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
-                        .padding(16.dp)
+                        .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
+                        .padding(12.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -611,17 +614,44 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
-                            val titleText = when (activeTool) {
-                                "Keno" -> "TOOL ACTIVE: KENO MATRIX ENGINE"
-                                "Aviator" -> "TOOL ACTIVE: AVIATOR TREND ENGINE"
-                                else -> "PREDICTOR CONTROLS"
+                            Box {
+                                TextButton(
+                                    onClick = { isPanelDropdownExpanded = true },
+                                    contentPadding = PaddingValues(0.dp)
+                                ) {
+                                    val titleText = when (activeTool) {
+                                        "Keno" -> if (activePanelTab == "Predictor") "TOOL ACTIVE: KENO MATRIX ENGINE ▼" else "SETTINGS ▼"
+                                        "Aviator" -> if (activePanelTab == "Predictor") "TOOL ACTIVE: AVIATOR TREND ENGINE ▼" else "SETTINGS ▼"
+                                        else -> if (activePanelTab == "Predictor") "PREDICTOR CONTROLS ▼" else "SETTINGS ▼"
+                                    }
+                                    Text(
+                                        text = titleText,
+                                        color = Color(0xFFD0BCFF),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = isPanelDropdownExpanded,
+                                    onDismissRequest = { isPanelDropdownExpanded = false },
+                                    modifier = Modifier.background(Color(0xFF2C2C2E))
+                                ) {
+                                    DropdownMenuItem(
+                                        text = { Text("Predictor", color = Color.White) },
+                                        onClick = { 
+                                            activePanelTab = "Predictor"
+                                            isPanelDropdownExpanded = false
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Settings", color = Color.White) },
+                                        onClick = { 
+                                            activePanelTab = "Settings"
+                                            isPanelDropdownExpanded = false
+                                        }
+                                    )
+                                }
                             }
-                            Text(
-                                text = titleText,
-                                color = Color(0xFFD0BCFF),
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold
-                            )
                         }
                         
                         // Green refresh button
@@ -695,10 +725,11 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
                     }
                     
                     if (isControlPanelExpanded) {
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         
-                        // Tool Switcher
-                        Row(
+                        if (activePanelTab == "Predictor") {
+                            // Tool Switcher
+                            Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
@@ -782,6 +813,24 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
                                         lineHeight = 20.sp
                                     )
                                 }
+                            }
+                        }
+                        } else {
+                            // Settings Content (Empty State)
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(8.dp))
+                                    .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No settings available.",
+                                    color = Color(0xFF938F99),
+                                    fontSize = 14.sp,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
                             }
                         }
                     }

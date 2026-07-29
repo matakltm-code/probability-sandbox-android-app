@@ -41,12 +41,21 @@ jobs:
         KEY_PASSWORD: temp1234
       run: ./gradlew assembleRelease
       
+    - name: Get Commit Message
+      id: get_commit
+      run: echo "msg=$(git log -1 --pretty=format:'%s')" >> $GITHUB_OUTPUT
+
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: build-${{ github.run_number }}
-        name: Build ${{ github.run_number }}
-        body: "Automated release containing the latest built APK from the main branch."
+        tag_name: v1.0.${{ github.run_number }}
+        name: Release v1.0.${{ github.run_number }} - ${{ steps.get_commit.outputs.msg }}
+        body: |
+          ### What's New
+          - ${{ steps.get_commit.outputs.msg }}
+          
+          Automated release containing the latest built APK from the main branch.
+        generate_release_notes: true
         files: app/build/outputs/apk/release/*.apk
