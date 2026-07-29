@@ -35,6 +35,10 @@ jobs:
     - name: Generate Gradle Wrapper
       run: gradle wrapper
       
+    - name: Generate Dummy google-services.json
+      run: |
+        echo '{"project_info":{"project_number":"12345","project_id":"dummy","storage_bucket":"dummy"},"client":[{"client_info":{"mobilesdk_app_id":"1:12345:android:12345","android_client_info":{"package_name":"com.example.dfbebd"}},"oauth_client":[],"api_key":[{"current_key":"dummy"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}]}' > app/google-services.json
+        
     - name: Generate Temporary Keystore
       run: |
         keytool -genkey -v -keystore release.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload -storepass temp1234 -keypass temp1234 -dname "CN=GitHub, OU=Actions, O=CI, L=Internet, ST=Global, C=US"
