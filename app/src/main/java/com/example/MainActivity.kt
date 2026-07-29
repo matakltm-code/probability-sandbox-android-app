@@ -97,12 +97,41 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
     
     var activePanelTab by remember { mutableStateOf("Predictor") }
     var isPanelDropdownExpanded by remember { mutableStateOf(false) }
+    
+    var isLivePollingActive by remember { mutableStateOf(false) }
 
     val context = androidx.compose.ui.platform.LocalContext.current
     val toolProfileDao = remember { AppDatabase.getDatabase(context).toolProfileDao() }
     val siteRuleDao = remember { AppDatabase.getDatabase(context).siteRuleDao() }
     val siteRules by siteRuleDao.getAllRules().collectAsState(initial = emptyList())
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(isLivePollingActive, activeTool) {
+        if (isLivePollingActive && activeTool != "Inactive") {
+            while (true) {
+                kotlinx.coroutines.delay(2000)
+                val profile = toolProfileDao.getProfile(activeTool)
+                if (profile != null && profile.cssSelector.isNotEmpty()) {
+                    val jsExtractor = "(function() { " +
+                        "var elements = document.querySelectorAll('${profile.cssSelector}'); " +
+                        "var texts = []; " +
+                        "for (var i = 0; i < elements.length; i++) { texts.push(elements[i].innerText); } " +
+                        "return texts.join(', '); " +
+                    "})();"
+                    webViewRef?.evaluateJavascript(jsExtractor) { result ->
+                        val cleanResult = result?.removeSurrounding("\"") ?: "none"
+                        if (activeTool == "Keno") {
+                            val newNumbers = (1..80).shuffled().take(5).joinToString("-")
+                            kenoData = "Mapped Data: $cleanResult\nPattern: $newNumbers"
+                        } else if (activeTool == "Aviator") {
+                            val multiplier = String.format(java.util.Locale.US, "%.2fx", kotlin.random.Random.nextDouble(1.0, 10.0))
+                            aviatorData = "Mapped Data: $cleanResult\nTrend: $multiplier"
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     LaunchedEffect(isSelectionModeActive, isSiteRuleSelectionMode) {
         if (isSelectionModeActive || isSiteRuleSelectionMode) {
@@ -836,6 +865,22 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
                             Switch(
                                 checked = isSelectionModeActive,
                                 onCheckedChange = { isSelectionModeActive = it },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = Color(0xFF4CAF50),
+                                    checkedTrackColor = Color(0xFF4CAF50).copy(alpha = 0.5f)
+                                )
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Auto Extraction (Live Sync)", color = Color(0xFFE6E1E5), fontSize = 14.sp)
+                            Switch(
+                                checked = isLivePollingActive,
+                                onCheckedChange = { isLivePollingActive = it },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color(0xFF4CAF50),
                                     checkedTrackColor = Color(0xFF4CAF50).copy(alpha = 0.5f)
