@@ -8,6 +8,12 @@ import com.example.data.local.SiteRule
 import com.example.data.local.ToolProfile
 import com.example.data.repository.SiteRuleRepository
 import com.example.data.repository.ToolProfileRepository
+import com.example.data.local.Bookmark
+import com.example.data.repository.BookmarkRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,15 +24,21 @@ import kotlinx.coroutines.launch
 class HomeScreenViewModel(application: Application) : AndroidViewModel(application) {
     private val siteRuleRepository: SiteRuleRepository
     private val toolProfileRepository: ToolProfileRepository
-
+    private val bookmarkRepository: BookmarkRepository
     val siteRules: StateFlow<List<SiteRule>>
-
+    val bookmarks: StateFlow<List<Bookmark>>
     init {
         val database = AppDatabase.getDatabase(application)
         siteRuleRepository = SiteRuleRepository(database.siteRuleDao())
         toolProfileRepository = ToolProfileRepository(database.toolProfileDao())
+        bookmarkRepository = BookmarkRepository(database.bookmarkDao())
 
         siteRules = siteRuleRepository.allRules.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+        bookmarks = bookmarkRepository.allBookmarks.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
@@ -132,4 +144,20 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     suspend fun getToolProfile(toolName: String): ToolProfile? {
         return toolProfileRepository.getProfile(toolName)
     }
+
+    fun isBookmarked(url: String): Flow<Boolean> {
+        return bookmarkRepository.isBookmarked(url)
+    }
+
+    fun toggleBookmark(url: String, title: String) {
+        viewModelScope.launch {
+            val isCurrentlyBookmarked = bookmarks.value.any { it.url == url }
+            if (isCurrentlyBookmarked) {
+                bookmarkRepository.deleteBookmark(Bookmark(url, title))
+            } else {
+                bookmarkRepository.insertBookmark(Bookmark(url, title))
+            }
+        }
+    }
+
 }

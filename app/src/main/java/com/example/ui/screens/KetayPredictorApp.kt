@@ -18,11 +18,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
@@ -57,6 +60,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
     val targetUrl by viewModel.targetUrl.collectAsStateWithLifecycle()
     val showExitConfirmation by viewModel.showExitConfirmation.collectAsStateWithLifecycle()
     val isPageLoading by viewModel.isPageLoading.collectAsStateWithLifecycle()
+    val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle(initialValue = emptyList())
     val activeTool by viewModel.activeTool.collectAsStateWithLifecycle()
     val kenoData by viewModel.kenoData.collectAsStateWithLifecycle()
     val aviatorData by viewModel.aviatorData.collectAsStateWithLifecycle()
@@ -80,20 +84,40 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                 kotlinx.coroutines.delay(2000)
                 val profile = viewModel.getToolProfile(activeTool)
                 if (profile != null && profile.cssSelector.isNotEmpty()) {
+                    val safeSelector = profile.cssSelector.replace("'", "\'")
+                    // Extract all child text elements, split by spaces or newlines to get individual numbers
                     val jsExtractor = "(function() { " +
-                        "var elements = document.querySelectorAll('${profile.cssSelector}'); " +
-                        "var texts = []; " +
-                        "for (var i = 0; i < elements.length; i++) { texts.push(elements[i].innerText); } " +
-                        "return texts.join(', '); " +
+                        "try { " +
+                        "  var elements = document.querySelectorAll('" + safeSelector + "'); " +
+                        "  var allText = ''; " +
+                        "  for (var i = 0; i < elements.length; i++) { " +
+                        "    allText += elements[i].innerText + ' '; " +
+                        "  } " +
+                        "  var items = allText.split(/\\\\s+/).filter(Boolean); " +
+                        "  return items.join(', '); " +
+                        "} catch(e) { return 'error'; } " +
                     "})();"
+                    
                     webViewRef?.evaluateJavascript(jsExtractor) { result ->
-                        val cleanResult = result?.removeSurrounding("\"") ?: "none"
+                        val cleanResult = result?.removeSurrounding("\"")?.replace("\u003C", "<")?.trim() ?: "none"
+                        
+                        // Limit displayed history
+                        val historyItems = cleanResult.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                        val displayHistory = historyItems.takeLast(10).joinToString(", ")
+                        
                         if (activeTool == "Keno") {
-                            val newNumbers = (1..80).shuffled().take(5).joinToString("-")
-                            viewModel.setKenoData("Mapped Data: $cleanResult\nPattern: $newNumbers")
+                            // Generate 5 predicted tickets of 10 numbers each
+                            val predictedTickets = java.lang.StringBuilder()
+                            predictedTickets.append("Target Data: $displayHistory\n\nPredicted Tickets:\n")
+                            for (i in 1..5) {
+                                val ticketNums = (1..80).shuffled().take(10).sorted().joinToString(" ")
+                                predictedTickets.append("T$i: $ticketNums\n")
+                            }
+                            viewModel.setKenoData(predictedTickets.toString().trim())
                         } else if (activeTool == "Aviator") {
-                            val multiplier = String.format(java.util.Locale.US, "%.2fx", kotlin.random.Random.nextDouble(1.0, 10.0))
-                            viewModel.setAviatorData("Mapped Data: $cleanResult\nTrend: $multiplier")
+                            // Predict the next multiplier based on pseudo-analysis
+                            val multiplier = String.format(java.util.Locale.US, "%.2fx", kotlin.random.Random.nextDouble(1.01, 5.50))
+                            viewModel.setAviatorData("Target Data: $displayHistory\n\nNext Expected Multiplier:\n$multiplier")
                         }
                     }
                 }
@@ -377,6 +401,39 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                     tint = Color.White
                                 )
                             }
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Bookmarks", color = Color.Gray, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (bookmarks.isEmpty()) {
+                        Text("No bookmarks yet.", color = Color.Gray, fontSize = 12.sp)
+                    } else {
+                        LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
+                            items(bookmarks) { bookmark ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { 
+                                            viewModel.setTargetUrl(bookmark.url)
+                                            viewModel.setWebViewVisible(true)
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(bookmark.title, color = Color.White, fontSize = 14.sp)
+                                        Text(bookmark.url, color = Color.Gray, fontSize = 12.sp)
+                                    }
+                                    IconButton(
+                                        onClick = { viewModel.toggleBookmark(bookmark.url, bookmark.title) },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(imageVector = Icons.Default.Delete, contentDescription = "Remove Bookmark", tint = Color.Gray)
+                                    }
+                                }
+                            }
+                        }
+                    }
                             Spacer(modifier = Modifier.height(12.dp))
                             Button(
                                 onClick = { 
@@ -622,6 +679,21 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+
+                        val currentUrl = webViewRef?.url ?: targetUrl
+                        val currentTitle = webViewRef?.title ?: "Web Page"
+                        val isBookmarked by viewModel.isBookmarked(currentUrl).collectAsStateWithLifecycle(false)
+                        IconButton(
+                            onClick = { viewModel.toggleBookmark(currentUrl, currentTitle) },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = if (isBookmarked) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = "Bookmark",
+                                tint = if (isBookmarked) Color.Red else Color.White
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
                             IconButton(
                                 onClick = {
                                     viewModel.setShowExitConfirmation(true)
