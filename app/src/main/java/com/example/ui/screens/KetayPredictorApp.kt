@@ -43,10 +43,8 @@ import androidx.compose.ui.platform.LocalContext
 import java.util.Locale
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 @Composable
-fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogViewModel) {
+fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogViewModel, onNavigateToLogs: () -> Unit, onNavigateToDeveloper: () -> Unit) {
     var isWebViewVisible by remember { mutableStateOf(false) }
-    var isActivityScreenVisible by remember { mutableStateOf(false) }
-    var isDeveloperScreenVisible by remember { mutableStateOf(false) }
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     var isControlPanelExpanded by remember { mutableStateOf(false) }
     var targetUrl by remember { mutableStateOf("https://google.com") }
@@ -208,12 +206,8 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
         activityLogViewModel.logActivity("Opened app")
     }
 
-    BackHandler(enabled = isWebViewVisible || isActivityScreenVisible || isDeveloperScreenVisible) {
-        if (isDeveloperScreenVisible) {
-            isDeveloperScreenVisible = false
-        } else if (isActivityScreenVisible) {
-            isActivityScreenVisible = false
-        } else if (webViewRef?.canGoBack() == true) {
+    BackHandler(enabled = isWebViewVisible) {
+        if (webViewRef?.canGoBack() == true) {
             webViewRef?.goBack()
         } else {
             showExitConfirmation = true
@@ -247,16 +241,7 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
     }
 
     Box(modifier = modifier.fillMaxSize().background(Color(0xFF1C1B1F))) {
-        if (isDeveloperScreenVisible) {
-            DeveloperScreen(
-                onBack = { isDeveloperScreenVisible = false }
-            )
-        } else if (isActivityScreenVisible) {
-            ActivityLogScreen(
-                viewModel = activityLogViewModel,
-                onBack = { isActivityScreenVisible = false }
-            )
-        } else if (!isWebViewVisible) {
+        if (!isWebViewVisible) {
             // Background Mesh
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val canvasWidth = size.width
@@ -445,7 +430,7 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         TextButton(
-                            onClick = { isActivityScreenVisible = true },
+                            onClick = { onNavigateToLogs() },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(50.dp)
@@ -458,7 +443,7 @@ fun KetayPredictorApp(modifier: Modifier = Modifier, activityLogViewModel: Activ
                             )
                         }
                         TextButton(
-                            onClick = { isDeveloperScreenVisible = true },
+                            onClick = { onNavigateToDeveloper() },
                             modifier = Modifier
                                 .weight(1f)
                                 .height(50.dp)

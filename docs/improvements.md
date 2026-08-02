@@ -1,13 +1,13 @@
 # App Improvements Plan
 
-## Step 1: Code Architecture (Modularization) (Current)
+## Step 1: Code Architecture (Modularization) (Completed)
 - Break down the massive `MainActivity.kt` file into smaller, focused and modular files.
 - Move `KetayPredictorApp` logic to its own screen/file.
 - Extract `ActivityLogScreen` and `DeveloperScreen` into separate files inside a `ui/screens` directory.
 - Separate UI components (like bottom sheets, dialogs, WebView wrappers) into reusable components within a `ui/components` directory.
 - Ensure state hoisting and clear separations of concerns across the UI layer.
 
-## Step 2: Proper Navigation
+## Step 2: Proper Navigation (Completed)
 - Implement Jetpack Navigation Compose (`NavHost`) instead of managing screen state manually via boolean variables (`isActivityScreenVisible`, `isDeveloperScreenVisible`).
 - Define strongly-typed routes.
 
