@@ -25,6 +25,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -59,10 +60,10 @@ fun ActivityLogScreen(viewModel: ActivityLogViewModel, onBack: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF1C1B1F))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         TopAppBar(
-            title = { Text("Activity Logs", color = Color(0xFFE6E1E5)) },
+            title = { Text("Activity Logs", color = MaterialTheme.colorScheme.onBackground) },
             navigationIcon = {
                 IconButton(onClick = onBack) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
@@ -76,7 +77,7 @@ fun ActivityLogScreen(viewModel: ActivityLogViewModel, onBack: () -> Unit) {
                     DropdownMenu(
                         expanded = expanded,
                         onDismissRequest = { expanded = false },
-                        modifier = Modifier.background(Color(0xFF2C2C2E))
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                     ) {
                         DropdownMenuItem(
                             text = { Text("Clear Last 24 Hours", color = Color.White) },
@@ -107,14 +108,14 @@ fun ActivityLogScreen(viewModel: ActivityLogViewModel, onBack: () -> Unit) {
         OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = { Text("Filter by domain or activity...", color = Color(0xFF938F99)) },
+            placeholder = { Text("Filter by domain or activity...", color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant) },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color(0xFF4CAF50),
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
                 unfocusedBorderColor = Color.White.copy(alpha = 0.2f),
-                cursorColor = Color(0xFF4CAF50),
+                cursorColor = MaterialTheme.colorScheme.primary,
                 focusedTextColor = Color.White,
                 unfocusedTextColor = Color.White
             ),
@@ -141,14 +142,14 @@ fun ActivityLogScreen(viewModel: ActivityLogViewModel, onBack: () -> Unit) {
                     Column {
                         Text(
                             text = log.description,
-                            color = Color(0xFFE6E1E5),
+                            color = MaterialTheme.colorScheme.onBackground,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = dateStr,
-                            color = Color(0xFF938F99),
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 12.sp
                         )
                     }

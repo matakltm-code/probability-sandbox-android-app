@@ -1,6 +1,8 @@
 package com.example.ui.screens
 
 import android.annotation.SuppressLint
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -33,51 +35,48 @@ import com.example.ActivityLogViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
-import com.example.AppDatabase
-import com.example.SiteRule
-import com.example.ToolProfile
+import com.example.data.local.AppDatabase
+import com.example.data.local.SiteRule
+import com.example.data.local.ToolProfile
 import com.example.MapperJS
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.platform.LocalContext
 import java.util.Locale
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.lifecycle.viewmodel.compose.viewModel
 @Composable
-fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogViewModel, onNavigateToLogs: () -> Unit, onNavigateToDeveloper: () -> Unit) {
-    var isWebViewVisible by remember { mutableStateOf(false) }
+fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogViewModel, onNavigateToLogs: () -> Unit, onNavigateToDeveloper: () -> Unit, viewModel: HomeScreenViewModel = viewModel()) {
+    val primaryColor = MaterialTheme.colorScheme.primary
+    val secondaryColor = MaterialTheme.colorScheme.secondary
+    val isWebViewVisible by viewModel.isWebViewVisible.collectAsStateWithLifecycle()
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
-    var isControlPanelExpanded by remember { mutableStateOf(false) }
-    var targetUrl by remember { mutableStateOf("https://google.com") }
-    var showExitConfirmation by remember { mutableStateOf(false) }
-    var isPageLoading by remember { mutableStateOf(false) }
-    var activeTool by remember { mutableStateOf("Inactive") }
-    var kenoData by remember { mutableStateOf("Ready to extract...") }
-    var aviatorData by remember { mutableStateOf("Ready to extract...") }
-
-    var isSelectionModeActive by remember { mutableStateOf(false) }
-    var showMappingDialog by remember { mutableStateOf(false) }
-    var selectedCssSelector by remember { mutableStateOf("") }
-    var selectedText by remember { mutableStateOf("") }
+    val isControlPanelExpanded by viewModel.isControlPanelExpanded.collectAsStateWithLifecycle()
+    val targetUrl by viewModel.targetUrl.collectAsStateWithLifecycle()
+    val showExitConfirmation by viewModel.showExitConfirmation.collectAsStateWithLifecycle()
+    val isPageLoading by viewModel.isPageLoading.collectAsStateWithLifecycle()
+    val activeTool by viewModel.activeTool.collectAsStateWithLifecycle()
+    val kenoData by viewModel.kenoData.collectAsStateWithLifecycle()
+    val aviatorData by viewModel.aviatorData.collectAsStateWithLifecycle()
+    val isSelectionModeActive by viewModel.isSelectionModeActive.collectAsStateWithLifecycle()
+    val showMappingDialog by viewModel.showMappingDialog.collectAsStateWithLifecycle()
+    val selectedCssSelector by viewModel.selectedCssSelector.collectAsStateWithLifecycle()
+    val selectedText by viewModel.selectedText.collectAsStateWithLifecycle()
+    val isSiteRuleSelectionMode by viewModel.isSiteRuleSelectionMode.collectAsStateWithLifecycle()
+    val showSiteRuleDialog by viewModel.showSiteRuleDialog.collectAsStateWithLifecycle()
+    val activePanelTab by viewModel.activePanelTab.collectAsStateWithLifecycle()
+    val isPanelDropdownExpanded by viewModel.isPanelDropdownExpanded.collectAsStateWithLifecycle()
+    val isLivePollingActive by viewModel.isLivePollingActive.collectAsStateWithLifecycle()
     
-    var isSiteRuleSelectionMode by remember { mutableStateOf(false) }
-    var showSiteRuleDialog by remember { mutableStateOf(false) }
     
-    var activePanelTab by remember { mutableStateOf("Predictor") }
-    var isPanelDropdownExpanded by remember { mutableStateOf(false) }
     
-    var isLivePollingActive by remember { mutableStateOf(false) }
-
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val toolProfileDao = remember { AppDatabase.getDatabase(context).toolProfileDao() }
-    val siteRuleDao = remember { AppDatabase.getDatabase(context).siteRuleDao() }
-    val siteRules by siteRuleDao.getAllRules().collectAsState(initial = emptyList())
+    val siteRules by viewModel.siteRules.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
-
     LaunchedEffect(isLivePollingActive, activeTool) {
         if (isLivePollingActive && activeTool != "Inactive") {
             while (true) {
                 kotlinx.coroutines.delay(2000)
-                val profile = toolProfileDao.getProfile(activeTool)
+                val profile = viewModel.getToolProfile(activeTool)
                 if (profile != null && profile.cssSelector.isNotEmpty()) {
                     val jsExtractor = "(function() { " +
                         "var elements = document.querySelectorAll('${profile.cssSelector}'); " +
@@ -89,17 +88,16 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                         val cleanResult = result?.removeSurrounding("\"") ?: "none"
                         if (activeTool == "Keno") {
                             val newNumbers = (1..80).shuffled().take(5).joinToString("-")
-                            kenoData = "Mapped Data: $cleanResult\nPattern: $newNumbers"
+                            viewModel.setKenoData("Mapped Data: $cleanResult\nPattern: $newNumbers")
                         } else if (activeTool == "Aviator") {
                             val multiplier = String.format(java.util.Locale.US, "%.2fx", kotlin.random.Random.nextDouble(1.0, 10.0))
-                            aviatorData = "Mapped Data: $cleanResult\nTrend: $multiplier"
+                            viewModel.setAviatorData("Mapped Data: $cleanResult\nTrend: $multiplier")
                         }
                     }
                 }
             }
         }
     }
-
     LaunchedEffect(isSelectionModeActive, isSiteRuleSelectionMode) {
         if (isSelectionModeActive || isSiteRuleSelectionMode) {
             webViewRef?.evaluateJavascript(MapperJS.enableScript, null)
@@ -107,7 +105,6 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
             webViewRef?.evaluateJavascript(MapperJS.disableScript, null)
         }
     }
-
     LaunchedEffect(siteRules) {
         val js = java.lang.StringBuilder("(function() { ")
         js.append("var style = document.getElementById('site-rules-style'); ")
@@ -120,65 +117,63 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
         js.append("})();")
         webViewRef?.evaluateJavascript(js.toString(), null)
     }
-
     if (showSiteRuleDialog) {
         AlertDialog(
             onDismissRequest = { 
-                showSiteRuleDialog = false
-                isSiteRuleSelectionMode = false
+                viewModel.setShowSiteRuleDialog(false)
+                viewModel.setSiteRuleSelectionMode(false)
             },
             title = { Text("Hide this element?", color = Color.White) },
             text = { 
                 Column {
                     Text("Path: $selectedCssSelector", color = Color.Gray, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Sample text: $selectedText", color = Color(0xFFE6E1E5))
+                    Text("Sample text: $selectedText", color = MaterialTheme.colorScheme.onBackground)
                 }
             },
-            containerColor = Color(0xFF2C2C2E),
+            containerColor = MaterialTheme.colorScheme.surface,
             confirmButton = {
                 TextButton(
                     onClick = {
                         coroutineScope.launch {
-                            siteRuleDao.insertRule(SiteRule(cssSelector = selectedCssSelector, label = selectedText.take(20)))
+                            viewModel.insertSiteRule(SiteRule(cssSelector = selectedCssSelector, label = selectedText.take(20)))
                         }
-                        showSiteRuleDialog = false
-                        isSiteRuleSelectionMode = false
+                        viewModel.setShowSiteRuleDialog(false)
+                        viewModel.setSiteRuleSelectionMode(false)
                     }
                 ) {
-                    Text("Save Rule", color = Color(0xFF4CAF50))
+                    Text("Save Rule", color = MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { 
-                    showSiteRuleDialog = false 
-                    isSiteRuleSelectionMode = false
+                    viewModel.setShowSiteRuleDialog(false) 
+                    viewModel.setSiteRuleSelectionMode(false)
                 }) {
                     Text("Cancel", color = Color.White)
                 }
             }
         )
     }
-
     if (showMappingDialog) {
         AlertDialog(
-            onDismissRequest = { showMappingDialog = false },
+            onDismissRequest = { viewModel.setShowMappingDialog(false) },
             title = { Text("Map this element?", color = Color.White) },
             text = { 
                 Column {
-                    Text("Target Tool: $activeTool", color = Color(0xFFD0BCFF))
+                    Text("Target Tool: $activeTool", color = com.example.ui.theme.TextHighlight)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Path: $selectedCssSelector", color = Color.Gray, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Sample text: $selectedText", color = Color(0xFFE6E1E5))
+                    Text("Sample text: $selectedText", color = MaterialTheme.colorScheme.onBackground)
                 }
             },
-            containerColor = Color(0xFF2C2C2E),
+            containerColor = MaterialTheme.colorScheme.surface,
             confirmButton = {
                 TextButton(
                     onClick = {
                         coroutineScope.launch {
-                            toolProfileDao.insertProfile(
+                            viewModel.insertToolProfile(
                                 ToolProfile(
                                     toolName = activeTool,
                                     cssSelector = selectedCssSelector,
@@ -187,44 +182,41 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                             )
                             activityLogViewModel.logActivity("Mapped $activeTool CSS: $selectedCssSelector")
                         }
-                        showMappingDialog = false
-                        isSelectionModeActive = false
+                        viewModel.setShowMappingDialog(false)
+                        viewModel.setSelectionModeActive(false)
                     }
                 ) {
-                    Text("Save to ObjectBox", color = Color(0xFF4CAF50))
+                    Text("Save to ObjectBox", color = MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showMappingDialog = false }) {
-                    Text("Cancel", color = Color(0xFFF44336))
+                TextButton(onClick = { viewModel.setShowMappingDialog(false) }) {
+                    Text("Cancel", color = MaterialTheme.colorScheme.error)
                 }
             }
         )
     }
-
     LaunchedEffect(Unit) {
         activityLogViewModel.logActivity("Opened app")
     }
-
     BackHandler(enabled = isWebViewVisible) {
         if (webViewRef?.canGoBack() == true) {
             webViewRef?.goBack()
         } else {
-            showExitConfirmation = true
+            viewModel.setShowExitConfirmation(true)
         }
     }
-
     if (showExitConfirmation) {
         AlertDialog(
-            onDismissRequest = { showExitConfirmation = false },
+            onDismissRequest = { viewModel.setShowExitConfirmation(false) },
             title = { Text("Confirm Exit") },
             text = { Text("Did you want to leave this site?") },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        showExitConfirmation = false
+                        viewModel.setShowExitConfirmation(false)
                         webViewRef?.loadUrl("about:blank")
-                        isWebViewVisible = false
+                        viewModel.setWebViewVisible(false)
                     }
                 ) {
                     Text("Confirm")
@@ -232,36 +224,33 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
             },
             dismissButton = {
                 TextButton(
-                    onClick = { showExitConfirmation = false }
+                    onClick = { viewModel.setShowExitConfirmation(false) }
                 ) {
                     Text("Cancel")
                 }
             }
         )
     }
-
-    Box(modifier = modifier.fillMaxSize().background(Color(0xFF1C1B1F))) {
+    Box(modifier = modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         if (!isWebViewVisible) {
             // Background Mesh
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val canvasWidth = size.width
                 val canvasHeight = size.height
-
                 // Top right green blur
                 drawCircle(
                     brush = Brush.radialGradient(
-                        colors = listOf(Color(0xFF4CAF50).copy(alpha = 0.2f), Color.Transparent),
+                        colors = listOf(primaryColor.copy(alpha = 0.2f), Color.Transparent),
                         center = Offset(canvasWidth, 0f),
                         radius = 600f
                     ),
                     center = Offset(canvasWidth, 0f),
                     radius = 600f
                 )
-
                 // Center left blue blur
                 drawCircle(
                     brush = Brush.radialGradient(
-                        colors = listOf(Color(0xFF3B82F6).copy(alpha = 0.2f), Color.Transparent),
+                        colors = listOf(secondaryColor.copy(alpha = 0.2f), Color.Transparent),
                         center = Offset(0f, canvasHeight / 2f),
                         radius = 500f
                     ),
@@ -269,7 +258,6 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                     radius = 500f
                 )
             }
-
             // Home Menu Layer
             Column(
                 modifier = Modifier
@@ -277,7 +265,6 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                     .padding(24.dp)
             ) {
                 Spacer(modifier = Modifier.height(24.dp))
-                
                 // Header Section
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -286,7 +273,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .background(Color(0xFF4CAF50), RoundedCornerShape(12.dp)),
+                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -298,27 +285,24 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                     Spacer(modifier = Modifier.width(12.dp))
                     Text(
                         text = "NATIVE WRAPPER",
-                        color = Color(0xFF4CAF50),
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
                     )
                 }
-                
                 Text(
                     text = "Probability Sandbox",
                     fontSize = 36.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFFE6E1E5)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-                
                 Text(
                     text = "Secured sandbox browser for predictive model viewing and engine analytics.",
                     fontSize = 16.sp,
-                    color = Color(0xFF938F99),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp, bottom = 48.dp)
                 )
-
                 // Action Cards
                 Column(
                     modifier = Modifier.weight(1f),
@@ -340,13 +324,13 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 Column {
                                     Text(
                                         text = "ACTIVE SESSION",
-                                        color = Color(0xFFD0BCFF),
+                                        color = com.example.ui.theme.TextHighlight,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold
                                     )
                                     Text(
                                         text = "Analytics Engine",
-                                        color = Color(0xFFE6E1E5),
+                                        color = MaterialTheme.colorScheme.onBackground,
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.Medium,
                                         modifier = Modifier.padding(top = 4.dp)
@@ -354,30 +338,28 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 }
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0xFF4CAF50).copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                                        .border(1.dp, Color(0xFF4CAF50).copy(alpha = 0.2f), RoundedCornerShape(4.dp))
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                                        .border(1.dp, primaryColor.copy(alpha = 0.2f), RoundedCornerShape(4.dp))
                                         .padding(horizontal = 8.dp, vertical = 4.dp)
                                 ) {
                                     Text(
                                         text = "READY",
-                                        color = Color(0xFF4CAF50),
+                                        color = MaterialTheme.colorScheme.primary,
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                             }
-                            
                             Spacer(modifier = Modifier.height(24.dp))
-                            
                             Button(
                                 onClick = { 
-                                    targetUrl = "https://google.com"
-                                    isWebViewVisible = true 
+                                    viewModel.setTargetUrl("https://google.com")
+                                    viewModel.setWebViewVisible(true) 
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(60.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 shape = RoundedCornerShape(28.dp)
                             ) {
                                 Text(
@@ -393,13 +375,11 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                     tint = Color.White
                                 )
                             }
-
                             Spacer(modifier = Modifier.height(12.dp))
-                            
                             Button(
                                 onClick = { 
-                                    targetUrl = "https://melbet-et.com"
-                                    isWebViewVisible = true 
+                                    viewModel.setTargetUrl("https://melbet-et.com")
+                                    viewModel.setWebViewVisible(true) 
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -422,9 +402,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                             }
                         }
                     }
-
                     Spacer(modifier = Modifier.height(16.dp))
-                    
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -438,7 +416,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                             Text(
                                 text = "View Logs",
                                 fontSize = 16.sp,
-                                color = Color(0xFF938F99),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -451,14 +429,12 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                             Text(
                                 text = "Developer",
                                 fontSize = 16.sp,
-                                color = Color(0xFF938F99),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
-
                     Spacer(modifier = Modifier.height(16.dp))
-
                     // Console Log Preview
                     Box(
                         modifier = Modifier
@@ -487,24 +463,23 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 text = "> Probability Sandbox Engine Initialized",
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 10.sp,
-                                color = Color(0xFF4ADE80).copy(alpha = 0.7f)
+                                color = com.example.ui.theme.KenoGreen.copy(alpha = 0.7f)
                             )
                             Text(
                                 text = "> Waiting for activity trigger...",
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 10.sp,
-                                color = Color(0xFF4ADE80).copy(alpha = 0.7f)
+                                color = com.example.ui.theme.KenoGreen.copy(alpha = 0.7f)
                             )
                             Text(
                                 text = "> DOMStorage: Enabled",
                                 fontFamily = FontFamily.Monospace,
                                 fontSize = 10.sp,
-                                color = Color(0xFF4ADE80).copy(alpha = 0.35f)
+                                color = com.example.ui.theme.KenoGreen.copy(alpha = 0.35f)
                             )
                         }
                     }
                 }
-
                 // Status Info Footer
                 Row(
                     modifier = Modifier
@@ -516,26 +491,26 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                         Text(
                             text = "PACKAGE",
                             fontSize = 10.sp,
-                            color = Color(0xFF938F99),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = "com.probability.sandbox",
                             fontSize = 12.sp,
-                            color = Color(0xFFE6E1E5)
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
                     Column(horizontalAlignment = Alignment.End) {
                         Text(
                             text = "PERMISSIONS",
                             fontSize = 10.sp,
-                            color = Color(0xFF938F99),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = "INTERNET • NETWORK",
                             fontSize = 12.sp,
-                            color = Color(0xFFE6E1E5)
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     }
                 }
@@ -554,39 +529,34 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                         settings.useWideViewPort = true
                         settings.loadWithOverviewMode = true
                         settings.userAgentString = settings.userAgentString.replace("; wv", "")
-                        
                         addJavascriptInterface(object {
                             @JavascriptInterface
                             fun onScrollDetected() {
                                 activityLogViewModel.logActivity("Page scrolled")
                             }
-
                             @JavascriptInterface
                             fun onElementSelected(cssSelector: String, text: String) {
                                 coroutineScope.launch {
-                                    selectedCssSelector = cssSelector
-                                    selectedText = text
+                                    viewModel.setSelectedElement(cssSelector, selectedText)
+                                    viewModel.setSelectedElement(selectedCssSelector, text)
                                     if (isSiteRuleSelectionMode) {
-                                        showSiteRuleDialog = true
+                                        viewModel.setShowSiteRuleDialog(true)
                                     } else {
-                                        showMappingDialog = true
+                                        viewModel.setShowMappingDialog(true)
                                     }
                                 }
                             }
                         }, "AndroidBridge")
-                        
                         webViewClient = object : WebViewClient() {
                             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                                 super.onPageStarted(view, url, favicon)
-                                isPageLoading = true
+                                viewModel.setPageLoading(true)
                             }
-
                             override fun onPageFinished(view: WebView, url: String?) {
                                 super.onPageFinished(view, url)
-                                isPageLoading = false
+                                viewModel.setPageLoading(false)
                                 val title = view.title ?: ""
                                 url?.let { activityLogViewModel.logActivity("Visited site: $it (Title: $title)") }
-                                
                                 val jsRules = java.lang.StringBuilder("(function() { ")
                                 jsRules.append("var style = document.createElement('style'); style.id = 'site-rules-style'; ")
                                 val css = java.lang.StringBuilder()
@@ -596,7 +566,6 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 jsRules.append("style.innerHTML = `${css.toString()}`; document.head.appendChild(style); ")
                                 jsRules.append("})();")
                                 view.evaluateJavascript(jsRules.toString(), null)
-                                
                                 view.evaluateJavascript(
                                     "(function() { " +
                                     "   console.log('Probability Sandbox Engine Active on: ' + window.location.href); " +
@@ -615,13 +584,11 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                         }
                         loadUrl(targetUrl)
                     }
-                    
                     webViewRef = webView
                     webView
                 },
                 modifier = Modifier.fillMaxSize()
             )
-            
             // Sticky Bottom Control
             Box(
                 modifier = Modifier
@@ -647,7 +614,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
                             IconButton(
                                 onClick = {
-                                    showExitConfirmation = true
+                                    viewModel.setShowExitConfirmation(true)
                                 },
                                 modifier = Modifier.size(32.dp)
                             ) {
@@ -660,7 +627,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                             Spacer(modifier = Modifier.width(8.dp))
                             Box {
                                 TextButton(
-                                    onClick = { isPanelDropdownExpanded = true },
+                                    onClick = { viewModel.setPanelDropdownExpanded(true) },
                                     contentPadding = PaddingValues(0.dp)
                                 ) {
                                     val titleText = when (activeTool) {
@@ -670,40 +637,39 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                     }
                                     Text(
                                         text = titleText,
-                                        color = Color(0xFFD0BCFF),
+                                        color = com.example.ui.theme.TextHighlight,
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
                                 DropdownMenu(
                                     expanded = isPanelDropdownExpanded,
-                                    onDismissRequest = { isPanelDropdownExpanded = false },
-                                    modifier = Modifier.background(Color(0xFF2C2C2E))
+                                    onDismissRequest = { viewModel.setPanelDropdownExpanded(false) },
+                                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                                 ) {
                                     DropdownMenuItem(
                                         text = { Text("Predictor", color = Color.White) },
                                         onClick = { 
-                                            activePanelTab = "Predictor"
-                                            isPanelDropdownExpanded = false
+                                            viewModel.setActivePanelTab("Predictor")
+                                            viewModel.setPanelDropdownExpanded(false)
                                         }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Settings", color = Color.White) },
                                         onClick = { 
-                                            activePanelTab = "Settings"
-                                            isPanelDropdownExpanded = false
+                                            viewModel.setActivePanelTab("Settings")
+                                            viewModel.setPanelDropdownExpanded(false)
                                         }
                                     )
                                 }
                             }
                         }
-                        
                         // Green refresh button
                         if (activeTool != "Inactive") {
                             IconButton(
                                 onClick = {
                                     coroutineScope.launch {
-                                        val profile = toolProfileDao.getProfile(activeTool)
+                                        val profile = viewModel.getToolProfile(activeTool)
                                         if (profile != null && profile.cssSelector.isNotEmpty()) {
                                             val jsExtractor = "(function() { " +
                                                 "var elements = document.querySelectorAll('${profile.cssSelector}'); " +
@@ -715,11 +681,11 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                                 val cleanResult = result?.removeSurrounding("\"") ?: "none"
                                                 if (activeTool == "Keno") {
                                                     val newNumbers = (1..80).shuffled().take(5).joinToString("-")
-                                                    kenoData = "Mapped Data: $cleanResult\nPattern: $newNumbers"
+                                                    viewModel.setKenoData("Mapped Data: $cleanResult\nPattern: $newNumbers")
                                                     activityLogViewModel.logActivity("Extracted Keno pattern: $newNumbers based on mapping")
                                                 } else if (activeTool == "Aviator") {
                                                     val multiplier = String.format(Locale.US, "%.2fx", kotlin.random.Random.nextDouble(1.0, 10.0))
-                                                    aviatorData = "Mapped Data: $cleanResult\nTrend: $multiplier"
+                                                    viewModel.setAviatorData("Mapped Data: $cleanResult\nTrend: $multiplier")
                                                     activityLogViewModel.logActivity("Extracted Aviator trend: $multiplier based on mapping")
                                                 }
                                             }
@@ -729,7 +695,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                                     "(function() { return 'extracted_keno_data'; })();"
                                                 ) { result ->
                                                     val newNumbers = (1..80).shuffled().take(5).joinToString("-")
-                                                    kenoData = "Hot Pairs: 12-45, 7-22\nFreq: 12 (5x), 45 (4x)\nRecent Pattern: $newNumbers\nExtracted: $result"
+                                                    viewModel.setKenoData("Hot Pairs: 12-45, 7-22\nFreq: 12 (5x), 45 (4x)\nRecent Pattern: $newNumbers\nExtracted: $result")
                                                     activityLogViewModel.logActivity("Extracted Keno pattern: $newNumbers")
                                                 }
                                             } else if (activeTool == "Aviator") {
@@ -737,7 +703,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                                     "(function() { return 'extracted_aviator_data'; })();"
                                                 ) { result ->
                                                     val multiplier = String.format(Locale.US, "%.2fx", kotlin.random.Random.nextDouble(1.0, 10.0))
-                                                    aviatorData = "Trend: Upward\nLast Multipliers: $multiplier, 1.25x, 2.10x\nExtracted: $result"
+                                                    viewModel.setAviatorData("Trend: Upward\nLast Multipliers: $multiplier, 1.25x, 2.10x\nExtracted: $result")
                                                     activityLogViewModel.logActivity("Extracted Aviator trend: $multiplier")
                                                 }
                                             }
@@ -746,7 +712,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 },
                                 modifier = Modifier
                                     .size(36.dp)
-                                    .background(Color(0xFF4CAF50), RoundedCornerShape(18.dp))
+                                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(18.dp))
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Refresh,
@@ -757,9 +723,8 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                         }
-
                         Button(
-                            onClick = { isControlPanelExpanded = !isControlPanelExpanded },
+                            onClick = { viewModel.setControlPanelExpanded(!isControlPanelExpanded) },
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
                             contentPadding = PaddingValues(0.dp),
                             modifier = Modifier.size(32.dp)
@@ -767,10 +732,8 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                             Text(if (isControlPanelExpanded) "▼" else "▲", color = Color.White)
                         }
                     }
-                    
                     if (isControlPanelExpanded) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        
                         if (activePanelTab == "Predictor") {
                             // Tool Switcher
                             Row(
@@ -779,10 +742,10 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                         ) {
                             listOf("Inactive", "Keno", "Aviator").forEach { tool ->
                                 Button(
-                                    onClick = { activeTool = tool },
+                                    onClick = { viewModel.setActiveTool(tool) },
                                     modifier = Modifier.weight(1f).height(36.dp),
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (activeTool == tool) Color(0xFF4CAF50).copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f)
+                                        containerColor = if (activeTool == tool) primaryColor.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f)
                                     ),
                                     contentPadding = PaddingValues(0.dp),
                                     shape = RoundedCornerShape(8.dp)
@@ -790,25 +753,24 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                     Text(
                                         text = tool,
                                         fontSize = 12.sp,
-                                        color = if (activeTool == tool) Color(0xFF4CAF50) else Color.White
+                                        color = if (activeTool == tool) MaterialTheme.colorScheme.primary else Color.White
                                     )
                                 }
                             }
                         }
-                        
                         Spacer(modifier = Modifier.height(12.dp))
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Map Page Elements", color = Color(0xFFE6E1E5), fontSize = 14.sp)
+                            Text("Map Page Elements", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
                             Switch(
                                 checked = isSelectionModeActive,
-                                onCheckedChange = { isSelectionModeActive = it },
+                                onCheckedChange = { viewModel.setSelectionModeActive(it) },
                                 colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color(0xFF4CAF50),
-                                    checkedTrackColor = Color(0xFF4CAF50).copy(alpha = 0.5f)
+                                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                    checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                                 )
                             )
                         }
@@ -818,18 +780,17 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            Text("Auto Extraction (Live Sync)", color = Color(0xFFE6E1E5), fontSize = 14.sp)
+                            Text("Auto Extraction (Live Sync)", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
                             Switch(
                                 checked = isLivePollingActive,
-                                onCheckedChange = { isLivePollingActive = it },
+                                onCheckedChange = { viewModel.setLivePollingActive(it) },
                                 colors = SwitchDefaults.colors(
-                                    checkedThumbColor = Color(0xFF4CAF50),
-                                    checkedTrackColor = Color(0xFF4CAF50).copy(alpha = 0.5f)
+                                    checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                    checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                                 )
                             )
                         }
                         Spacer(modifier = Modifier.height(12.dp))
-
                         if (activeTool == "Inactive") {
                             // Hidden content, maybe just a placeholder
                             Box(
@@ -842,7 +803,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                             ) {
                                 Text(
                                     text = "Select a tool to begin pattern extraction.",
-                                    color = Color(0xFF938F99),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontSize = 14.sp,
                                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                                 )
@@ -859,7 +820,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 if (activeTool == "Keno") {
                                     Text(
                                         text = kenoData,
-                                        color = Color(0xFF4ADE80),
+                                        color = com.example.ui.theme.KenoGreen,
                                         fontSize = 14.sp,
                                         fontFamily = FontFamily.Monospace,
                                         lineHeight = 20.sp
@@ -867,7 +828,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 } else if (activeTool == "Aviator") {
                                     Text(
                                         text = aviatorData,
-                                        color = Color(0xFFFFD54F),
+                                        color = com.example.ui.theme.AviatorYellow,
                                         fontSize = 14.sp,
                                         fontFamily = FontFamily.Monospace,
                                         lineHeight = 20.sp
@@ -892,14 +853,13 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                     Text("Inspect & Hide Elements", color = Color.White, fontSize = 14.sp)
                                     Switch(
                                         checked = isSiteRuleSelectionMode,
-                                        onCheckedChange = { isSiteRuleSelectionMode = it },
+                                        onCheckedChange = { viewModel.setSiteRuleSelectionMode(it) },
                                         colors = SwitchDefaults.colors(
-                                            checkedThumbColor = Color(0xFF4CAF50),
-                                            checkedTrackColor = Color(0xFF4CAF50).copy(alpha = 0.5f)
+                                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                            checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
                                         )
                                     )
                                 }
-                                
                                 if (siteRules.isNotEmpty()) {
                                     Spacer(modifier = Modifier.height(8.dp))
                                     Text("Saved Rules:", color = Color.Gray, fontSize = 12.sp)
@@ -917,12 +877,12 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                                 Switch(
                                                     checked = rule.isEnabled,
                                                     onCheckedChange = { 
-                                                        coroutineScope.launch { siteRuleDao.updateRule(rule.copy(isEnabled = it)) } 
+                                                        coroutineScope.launch { viewModel.updateSiteRule(rule.copy(isEnabled = it)) } 
                                                     },
                                                     modifier = Modifier.scale(0.8f)
                                                 )
                                                 IconButton(
-                                                    onClick = { coroutineScope.launch { siteRuleDao.deleteRule(rule) } },
+                                                    onClick = { coroutineScope.launch { viewModel.deleteSiteRule(rule) } },
                                                     modifier = Modifier.size(24.dp)
                                                 ) {
                                                     Icon(imageVector = Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
@@ -936,7 +896,6 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                     }
                 }
             }
-            
             if (isPageLoading) {
                 val loadingTexts = listOf(
                     "Preparing tools for secured simulation...",
@@ -945,22 +904,20 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                     "Initializing prediction engine..."
                 )
                 var currentTextIndex by remember { mutableStateOf(0) }
-
                 LaunchedEffect(Unit) {
                     while (true) {
                         kotlinx.coroutines.delay(1500)
                         currentTextIndex = (currentTextIndex + 1) % loadingTexts.size
                     }
                 }
-
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0xFF1C1B1F)),
+                        .background(MaterialTheme.colorScheme.background),
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = Color(0xFF4CAF50))
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(
                             text = loadingTexts[currentTextIndex],
@@ -974,4 +931,3 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
         }
     }
 }
-
