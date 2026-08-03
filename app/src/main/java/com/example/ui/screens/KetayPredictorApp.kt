@@ -730,9 +730,26 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                     modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                                 ) {
                                     DropdownMenuItem(
-                                        text = { Text("Predictor", color = Color.White) },
+                                        text = { Text("None (Home)", color = Color.White) },
                                         onClick = { 
                                             viewModel.setActivePanelTab("Predictor")
+                                            viewModel.setActiveTool("Inactive")
+                                            viewModel.setPanelDropdownExpanded(false)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Keno Predictor", color = Color.White) },
+                                        onClick = { 
+                                            viewModel.setActivePanelTab("Predictor")
+                                            viewModel.setActiveTool("Keno")
+                                            viewModel.setPanelDropdownExpanded(false)
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Aviator Predictor", color = Color.White) },
+                                        onClick = { 
+                                            viewModel.setActivePanelTab("Predictor")
+                                            viewModel.setActiveTool("Aviator")
                                             viewModel.setPanelDropdownExpanded(false)
                                         }
                                     )
@@ -817,30 +834,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                     if (isControlPanelExpanded) {
                         Spacer(modifier = Modifier.height(8.dp))
                         if (activePanelTab == "Predictor") {
-                            // Tool Switcher
-                            Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            listOf("Inactive", "Keno", "Aviator").forEach { tool ->
-                                Button(
-                                    onClick = { viewModel.setActiveTool(tool) },
-                                    modifier = Modifier.weight(1f).height(36.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (activeTool == tool) primaryColor.copy(alpha = 0.2f) else Color.White.copy(alpha = 0.05f)
-                                    ),
-                                    contentPadding = PaddingValues(0.dp),
-                                    shape = RoundedCornerShape(8.dp)
-                                ) {
-                                    Text(
-                                        text = tool,
-                                        fontSize = 12.sp,
-                                        color = if (activeTool == tool) MaterialTheme.colorScheme.primary else Color.White
-                                    )
-                                }
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
+                            // Tool Switcher removed, now in top dropdown
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.fillMaxWidth(),
