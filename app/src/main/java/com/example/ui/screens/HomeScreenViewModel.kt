@@ -99,6 +99,9 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     private val _isLivePollingActive = MutableStateFlow(false)
     val isLivePollingActive: StateFlow<Boolean> = _isLivePollingActive.asStateFlow()
 
+    private val _isDeepExtractionEnabled = MutableStateFlow(false)
+    val isDeepExtractionEnabled: StateFlow<Boolean> = _isDeepExtractionEnabled.asStateFlow()
+
     fun setWebViewVisible(visible: Boolean) { _isWebViewVisible.value = visible }
     fun setControlPanelExpanded(expanded: Boolean) { _isControlPanelExpanded.value = expanded }
     fun setTargetUrl(url: String) { _targetUrl.value = url }
@@ -119,6 +122,7 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     fun setActivePanelTab(tab: String) { _activePanelTab.value = tab }
     fun setPanelDropdownExpanded(expanded: Boolean) { _isPanelDropdownExpanded.value = expanded }
     fun setLivePollingActive(active: Boolean) { _isLivePollingActive.value = active }
+    fun setDeepExtractionEnabled(enabled: Boolean) { _isDeepExtractionEnabled.value = enabled }
 
     // Repository operations
     fun insertSiteRule(rule: SiteRule) {

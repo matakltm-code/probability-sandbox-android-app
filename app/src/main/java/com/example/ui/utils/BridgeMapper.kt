@@ -21,10 +21,11 @@ object BridgeMapper {
             window.__bridgeMapperInjected = true;
             
             // 1. Hook Canvas text drawing
+            window.__deepExtractionEnabled = false;
             const originalFillText = CanvasRenderingContext2D.prototype.fillText;
             CanvasRenderingContext2D.prototype.fillText = function(text, x, y, maxWidth) {
                 try {
-                    if (window.$BRIDGE_NAME && text && text.trim().length > 0) {
+                    if (window.__deepExtractionEnabled && window.$BRIDGE_NAME && text && text.trim().length > 0) {
                         // Send text to Android layer
                         window.$BRIDGE_NAME.postMessage(JSON.stringify({ type: 'canvas', text: text.trim() }));
                     }
@@ -69,6 +70,8 @@ object BridgeMapper {
                         if (window.__activeDomObserver) {
                             window.__activeDomObserver.disconnect();
                         }
+                    } else if (msg.type === 'setDeepExtraction') {
+                        window.__deepExtractionEnabled = msg.enabled;
                     }
                 } catch(err) {}
             });

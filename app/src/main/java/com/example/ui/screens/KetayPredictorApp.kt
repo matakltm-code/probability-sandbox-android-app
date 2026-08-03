@@ -74,9 +74,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
     val activePanelTab by viewModel.activePanelTab.collectAsStateWithLifecycle()
     val isPanelDropdownExpanded by viewModel.isPanelDropdownExpanded.collectAsStateWithLifecycle()
     val isLivePollingActive by viewModel.isLivePollingActive.collectAsStateWithLifecycle()
-    
-    
-    
+    val isDeepExtractionEnabled by viewModel.isDeepExtractionEnabled.collectAsStateWithLifecycle()
     val siteRules by viewModel.siteRules.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
     LaunchedEffect(isLivePollingActive, activeTool) {
@@ -118,6 +116,20 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
         } else {
             webViewRef?.evaluateJavascript(MapperJS.disableScript, null)
         }
+    }
+    LaunchedEffect(isDeepExtractionEnabled) {
+        val script = """
+            (function() {
+                var msg = JSON.stringify({ type: 'setDeepExtraction', enabled: $isDeepExtractionEnabled });
+                window.__deepExtractionEnabled = $isDeepExtractionEnabled;
+                try {
+                    for (var i = 0; i < window.frames.length; i++) {
+                        window.frames[i].postMessage(msg, '*');
+                    }
+                } catch(e) {}
+            })();
+        """.trimIndent()
+        webViewRef?.evaluateJavascript(script, null)
     }
     LaunchedEffect(siteRules) {
         val js = java.lang.StringBuilder("(function() { ")
@@ -573,7 +585,6 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                         )
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
-                        settings.databaseEnabled = true
                         settings.useWideViewPort = true
                         settings.loadWithOverviewMode = true
                         settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
@@ -967,6 +978,22 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                     Switch(
                                         checked = isSiteRuleSelectionMode,
                                         onCheckedChange = { viewModel.setSiteRuleSelectionMode(it) },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                            checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                        )
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Deep Extraction (Iframes/Canvas)", color = Color.White, fontSize = 14.sp)
+                                    Switch(
+                                        checked = isDeepExtractionEnabled,
+                                        onCheckedChange = { viewModel.setDeepExtractionEnabled(it) },
                                         colors = SwitchDefaults.colors(
                                             checkedThumbColor = MaterialTheme.colorScheme.primary,
                                             checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
