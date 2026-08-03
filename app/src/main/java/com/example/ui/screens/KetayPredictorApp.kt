@@ -702,22 +702,26 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
-                            Box {
-                                TextButton(
-                                    onClick = { viewModel.setPanelDropdownExpanded(true) },
-                                    contentPadding = PaddingValues(0.dp)
-                                ) {
+                            Box(
+                                modifier = Modifier
+                                    .background(Color.White.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                                    .clickable { viewModel.setPanelDropdownExpanded(true) }
+                                    .padding(horizontal = 12.dp, vertical = 8.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     val titleText = when (activeTool) {
-                                        "Keno" -> if (activePanelTab == "Predictor") "TOOL ACTIVE: KENO MATRIX ENGINE ▼" else "SETTINGS ▼"
-                                        "Aviator" -> if (activePanelTab == "Predictor") "TOOL ACTIVE: AVIATOR TREND ENGINE ▼" else "SETTINGS ▼"
-                                        else -> if (activePanelTab == "Predictor") "PREDICTOR CONTROLS ▼" else "SETTINGS ▼"
+                                        "Keno" -> if (activePanelTab == "Predictor") "Keno Engine" else "Settings"
+                                        "Aviator" -> if (activePanelTab == "Predictor") "Aviator Engine" else "Settings"
+                                        else -> if (activePanelTab == "Predictor") "Select Game" else "Settings"
                                     }
                                     Text(
                                         text = titleText,
-                                        color = com.example.ui.theme.TextHighlight,
-                                        fontSize = 12.sp,
+                                        color = Color.White,
+                                        fontSize = 14.sp,
                                         fontWeight = FontWeight.Bold
                                     )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("▼", color = Color.White, fontSize = 10.sp)
                                 }
                                 DropdownMenu(
                                     expanded = isPanelDropdownExpanded,
