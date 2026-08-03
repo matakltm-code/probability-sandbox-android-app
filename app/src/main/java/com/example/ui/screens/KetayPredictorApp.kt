@@ -64,6 +64,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
     val activeTool by viewModel.activeTool.collectAsStateWithLifecycle()
     val kenoData by viewModel.kenoData.collectAsStateWithLifecycle()
     val aviatorData by viewModel.aviatorData.collectAsStateWithLifecycle()
+    val liveCanvasData by viewModel.liveCanvasData.collectAsStateWithLifecycle()
     val isSelectionModeActive by viewModel.isSelectionModeActive.collectAsStateWithLifecycle()
     val showMappingDialog by viewModel.showMappingDialog.collectAsStateWithLifecycle()
     val selectedCssSelector by viewModel.selectedCssSelector.collectAsStateWithLifecycle()
@@ -619,14 +620,20 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                         com.example.ui.utils.BridgeMapper.setupWebMessageListener(this, coroutineScope) { type, data ->
                             coroutineScope.launch {
                                 val tool = viewModel.activeTool.value
-                                if (tool == "Keno") {
-                                    val history = data.split(",").mapNotNull { it.trim().toIntOrNull() }
-                                    val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(history)
-                                    viewModel.setKenoData(prediction)
-                                } else if (tool == "Aviator") {
-                                    val history = data.split(",").mapNotNull { it.trim().replace("x", "").toDoubleOrNull() }
-                                    val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(history)
-                                    viewModel.setAviatorData(prediction)
+                                if (type == "dom") {
+                                    if (tool == "Keno") {
+                                        val history = data.split(",").mapNotNull { it.trim().toIntOrNull() }
+                                        val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(history)
+                                        viewModel.setKenoData(prediction)
+                                    } else if (tool == "Aviator") {
+                                        val history = data.split(",").mapNotNull { it.trim().replace("x", "").toDoubleOrNull() }
+                                        val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(history)
+                                        viewModel.setAviatorData(prediction)
+                                    }
+                                } else if (type == "canvas") {
+                                    if (tool == "Aviator" && data.contains("x", ignoreCase = true)) {
+                                        viewModel.setLiveCanvasData("Live: $data")
+                                    }
                                 }
                             }
                         }
@@ -921,13 +928,24 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                         lineHeight = 20.sp
                                     )
                                 } else if (activeTool == "Aviator") {
-                                    Text(
-                                        text = aviatorData,
-                                        color = com.example.ui.theme.AviatorYellow,
-                                        fontSize = 14.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        lineHeight = 20.sp
-                                    )
+                                    Column {
+                                        Text(
+                                            text = aviatorData,
+                                            color = com.example.ui.theme.AviatorYellow,
+                                            fontSize = 14.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            lineHeight = 20.sp
+                                        )
+                                        if (liveCanvasData.isNotEmpty()) {
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text(
+                                                text = liveCanvasData,
+                                                color = Color.White,
+                                                fontSize = 12.sp,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }

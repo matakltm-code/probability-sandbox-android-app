@@ -69,6 +69,9 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     private val _aviatorData = MutableStateFlow("Ready to extract...")
     val aviatorData: StateFlow<String> = _aviatorData.asStateFlow()
 
+    private val _liveCanvasData = MutableStateFlow("")
+    val liveCanvasData: StateFlow<String> = _liveCanvasData.asStateFlow()
+
     private val _isSelectionModeActive = MutableStateFlow(false)
     val isSelectionModeActive: StateFlow<Boolean> = _isSelectionModeActive.asStateFlow()
 
@@ -104,6 +107,7 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     fun setActiveTool(tool: String) { _activeTool.value = tool }
     fun setKenoData(data: String) { _kenoData.value = data }
     fun setAviatorData(data: String) { _aviatorData.value = data }
+    fun setLiveCanvasData(data: String) { _liveCanvasData.value = data }
     fun setSelectionModeActive(active: Boolean) { _isSelectionModeActive.value = active }
     fun setShowMappingDialog(show: Boolean) { _showMappingDialog.value = show }
     fun setSelectedElement(cssSelector: String, text: String) {
