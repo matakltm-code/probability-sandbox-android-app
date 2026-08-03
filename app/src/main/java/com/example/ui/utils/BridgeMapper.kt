@@ -60,6 +60,19 @@ object BridgeMapper {
                 extractAndSend(); // Initial check
             };
             
+            window.addEventListener('message', function(e) {
+                try {
+                    var msg = JSON.parse(e.data);
+                    if (msg.type === 'startDomExtraction') {
+                        window.startDomExtraction(msg.selector);
+                    } else if (msg.type === 'stopDomExtraction') {
+                        if (window.__activeDomObserver) {
+                            window.__activeDomObserver.disconnect();
+                        }
+                    }
+                } catch(err) {}
+            });
+            
             console.log("BridgeMapper payload injected successfully.");
         })();
     """.trimIndent()

@@ -83,10 +83,32 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
             val profile = viewModel.getToolProfile(activeTool)
             if (profile != null && profile.cssSelector.isNotEmpty()) {
                 val safeSelector = profile.cssSelector.replace("\"", "\\\"").replace("'", "\\'")
-                webViewRef?.evaluateJavascript("if(window.startDomExtraction) window.startDomExtraction('$safeSelector');", null)
+                val broadcastScript = """
+                    (function() {
+                        var msg = JSON.stringify({ type: 'startDomExtraction', selector: '$safeSelector' });
+                        if(window.startDomExtraction) window.startDomExtraction('$safeSelector');
+                        try {
+                            for (var i = 0; i < window.frames.length; i++) {
+                                window.frames[i].postMessage(msg, '*');
+                            }
+                        } catch(e) {}
+                    })();
+                """.trimIndent()
+                webViewRef?.evaluateJavascript(broadcastScript, null)
             }
         } else {
-            webViewRef?.evaluateJavascript("if(window.__activeDomObserver) { window.__activeDomObserver.disconnect(); }", null)
+            val stopScript = """
+                (function() {
+                    var msg = JSON.stringify({ type: 'stopDomExtraction' });
+                    if(window.__activeDomObserver) window.__activeDomObserver.disconnect();
+                    try {
+                        for (var i = 0; i < window.frames.length; i++) {
+                            window.frames[i].postMessage(msg, '*');
+                        }
+                    } catch(e) {}
+                })();
+            """.trimIndent()
+            webViewRef?.evaluateJavascript(stopScript, null)
         }
     }
     LaunchedEffect(isSelectionModeActive, isSiteRuleSelectionMode) {
@@ -769,27 +791,20 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                     coroutineScope.launch {
                                         val profile = viewModel.getToolProfile(activeTool)
                                         if (profile != null && profile.cssSelector.isNotEmpty()) {
-                                            val jsExtractor = "(function() { " +
-                                                "var elements = document.querySelectorAll('${profile.cssSelector}'); " +
-                                                "var texts = []; " +
-                                                "for (var i = 0; i < elements.length; i++) { texts.push(elements[i].innerText); } " +
-                                                "return texts.join(', '); " +
-                                            "})();"
-                                            webViewRef?.evaluateJavascript(jsExtractor) { result ->
-                                                val cleanResult = result?.removeSurrounding("\"")?.trim() ?: "none"
-                                                val items = cleanResult.split(",").mapNotNull { it.trim().substringBefore(" ").replace("x", "").toDoubleOrNull() }
-                                                
-                                                if (activeTool == "Keno") {
-                                                    val history = items.map { it.toInt() }
-                                                    val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(history)
-                                                    viewModel.setKenoData(prediction)
-                                                    activityLogViewModel.logActivity("Manual extracted Keno patterns")
-                                                } else if (activeTool == "Aviator") {
-                                                    val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(items)
-                                                    viewModel.setAviatorData(prediction)
-                                                    activityLogViewModel.logActivity("Manual extracted Aviator trend")
-                                                }
-                                            }
+                                            val safeSelector = profile.cssSelector.replace("\"", "\\\"").replace("'", "\\'")
+                                            val broadcastScript = """
+                                                (function() {
+                                                    var msg = JSON.stringify({ type: 'startDomExtraction', selector: '$safeSelector' });
+                                                    if(window.startDomExtraction) window.startDomExtraction('$safeSelector');
+                                                    try {
+                                                        for (var i = 0; i < window.frames.length; i++) {
+                                                            window.frames[i].postMessage(msg, '*');
+                                                        }
+                                                    } catch(e) {}
+                                                })();
+                                            """.trimIndent()
+                                            webViewRef?.evaluateJavascript(broadcastScript, null)
+                                            activityLogViewModel.logActivity("Manual extracted $activeTool patterns")
                                         } else {
                                             if (activeTool == "Keno") {
                                                 webViewRef?.evaluateJavascript(
