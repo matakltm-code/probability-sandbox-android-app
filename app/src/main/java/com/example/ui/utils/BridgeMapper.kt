@@ -61,6 +61,53 @@ object BridgeMapper {
                 extractAndSend(); // Initial check
             };
             
+            // 3. Mapping Element Helper
+            function getCssSelector(el) {
+                if (!(el instanceof Element)) return;
+                var path = [];
+                while (el.nodeType === Node.ELEMENT_NODE) {
+                    var selector = el.nodeName.toLowerCase();
+                    if (el.id) {
+                        selector += '#' + el.id;
+                        path.unshift(selector);
+                        break;
+                    } else {
+                        var sib = el, nth = 1;
+                        while (sib = sib.previousElementSibling) {
+                            if (sib.nodeName.toLowerCase() == selector) nth++;
+                        }
+                        if (nth != 1) selector += ":nth-of-type("+nth+")";
+                    }
+                    path.unshift(selector);
+                    el = el.parentNode;
+                }
+                return path.join(" > ");
+            }
+
+            window.__mappingEnabled = false;
+            document.addEventListener('click', function(e) {
+                if (window.__mappingEnabled) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var target = e.target;
+                    var selector = getCssSelector(target);
+                    var text = target.innerText || target.textContent;
+                    
+                    var oldOutline = target.style.outline;
+                    var oldBackgroundColor = target.style.backgroundColor;
+                    target.style.outline = '3px solid #4CAF50';
+                    target.style.backgroundColor = 'rgba(76, 175, 80, 0.3)';
+                    setTimeout(function() {
+                        target.style.outline = oldOutline;
+                        target.style.backgroundColor = oldBackgroundColor;
+                    }, 2000);
+                    
+                    if (window.$BRIDGE_NAME) {
+                        window.$BRIDGE_NAME.postMessage(JSON.stringify({ type: 'map', selector: selector, text: text ? text.substring(0, 50) : '' }));
+                    }
+                }
+            }, true);
+
             window.addEventListener('message', function(e) {
                 try {
                     var msg = JSON.parse(e.data);
@@ -72,6 +119,8 @@ object BridgeMapper {
                         }
                     } else if (msg.type === 'setDeepExtraction') {
                         window.__deepExtractionEnabled = msg.enabled;
+                    } else if (msg.type === 'setMapping') {
+                        window.__mappingEnabled = msg.enabled;
                     }
                 } catch(err) {}
             });
@@ -84,7 +133,7 @@ object BridgeMapper {
     fun setupWebMessageListener(
         webView: WebView,
         coroutineScope: CoroutineScope,
-        onDataReceived: (String, String) -> Unit // (type, data)
+        onDataReceived: (String, String, String) -> Unit // (type, data1, data2)
     ) {
         if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
             WebViewCompat.addDocumentStartJavaScript(
@@ -107,11 +156,19 @@ object BridgeMapper {
                         try {
                             val json = JSONObject(dataStr)
                             val type = json.optString("type")
-                            val content = if (type == "canvas") json.optString("text") else json.optString("data")
-                            if (content.isNotEmpty()) {
-                                // Switch context or handle carefully since this is called on a WebView thread
+                            if (type == "map") {
+                                val selector = json.optString("selector")
+                                val text = json.optString("text")
                                 coroutineScope.launch {
-                                    onDataReceived(type, content)
+                                    onDataReceived(type, selector, text)
+                                }
+                            } else {
+                                val content = if (type == "canvas") json.optString("text") else json.optString("data")
+                                if (content.isNotEmpty()) {
+                                    // Switch context or handle carefully since this is called on a WebView thread
+                                    coroutineScope.launch {
+                                        onDataReceived(type, content, "")
+                                    }
                                 }
                             }
                         } catch (e: Exception) {

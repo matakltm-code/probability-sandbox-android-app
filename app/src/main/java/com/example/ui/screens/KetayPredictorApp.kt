@@ -111,11 +111,19 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
         }
     }
     LaunchedEffect(isSelectionModeActive, isSiteRuleSelectionMode) {
-        if (isSelectionModeActive || isSiteRuleSelectionMode) {
-            webViewRef?.evaluateJavascript(MapperJS.enableScript, null)
-        } else {
-            webViewRef?.evaluateJavascript(MapperJS.disableScript, null)
-        }
+        val isEnabled = isSelectionModeActive || isSiteRuleSelectionMode
+        val script = """
+            (function() {
+                var msg = JSON.stringify({ type: 'setMapping', enabled: $isEnabled });
+                window.__mappingEnabled = $isEnabled;
+                try {
+                    for (var i = 0; i < window.frames.length; i++) {
+                        window.frames[i].postMessage(msg, '*');
+                    }
+                } catch(e) {}
+            })();
+        """.trimIndent()
+        webViewRef?.evaluateJavascript(script, null)
     }
     LaunchedEffect(isDeepExtractionEnabled) {
         val script = """
@@ -628,10 +636,11 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                             }
                         }, "AndroidBridge")
                         
-                        com.example.ui.utils.BridgeMapper.setupWebMessageListener(this, coroutineScope) { type, data ->
+                        com.example.ui.utils.BridgeMapper.setupWebMessageListener(this, coroutineScope) { type, data1, data2 ->
                             coroutineScope.launch {
                                 val tool = viewModel.activeTool.value
                                 if (type == "dom") {
+                                    val data = data1
                                     if (tool == "Keno") {
                                         val history = data.split(",").mapNotNull { it.trim().toIntOrNull() }
                                         val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(history)
@@ -642,9 +651,15 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                         viewModel.setAviatorData(prediction)
                                     }
                                 } else if (type == "canvas") {
+                                    val data = data1
                                     if (tool == "Aviator" && data.contains("x", ignoreCase = true)) {
                                         viewModel.setLiveCanvasData("Live: $data")
                                     }
+                                } else if (type == "map") {
+                                    val selector = data1
+                                    val text = data2
+                                    viewModel.setSelectedElement(selector, text)
+                                    viewModel.setShowMappingDialog(true)
                                 }
                             }
                         }
