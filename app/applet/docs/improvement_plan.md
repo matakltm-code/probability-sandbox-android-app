@@ -33,6 +33,18 @@ This plan details how we will incorporate and build upon these concepts to solid
 *   **Proposed Benefit:** Migrating to a `MutationObserver` architecture (event-driven) or optimizing the polling interval state sync prevents memory leaks and ensures Kotlin Flow doesn't get flooded with duplicate emissions.
 *   **Action Plan:** Audit the current `evaluateJavascript` polling loop and integrate the more robust mutation-aware script described in the commit report.
 
+### 2.5 Cross-Origin Iframes and Canvas Rendering Analysis
+**Evaluation: High Complexity, Necessary for Modern Games**
+*   **Current State:** Extraction relies on `document.querySelectorAll` executed on the main frame. Many modern crash games and casino games run inside cross-origin `iframe` elements, or render graphics entirely using WebGL or `<canvas>` elements (without text DOM nodes).
+*   **Analysis:** 
+    *   *Cross-Origin Iframes:* Android's `WebView.evaluateJavascript()` only executes in the top-level main frame. The Same-Origin Policy (SOP) blocks accessing iframe contents across different domains.
+    *   *Canvas Elements:* `<canvas>` and WebGL render purely pixels. There are no HTML tags representing the text drawn inside them, rendering standard DOM extraction completely ineffective.
+*   **Proposed Solution (Decision):** 
+    1.  **Iframe Network Interceptor:** Rather than using `evaluateJavascript` from the parent, we must override `WebViewClient.shouldInterceptRequest`. For any `.html` resource loaded by an iframe, the app can intercept the HTTP response and inject the `MapperJS` script directly into the HTML body payload before it reaches the WebView. This injects our extraction logic into *every* frame securely.
+    2.  **Canvas2D API Hooking:** We will enhance `MapperJS` to intercept `CanvasRenderingContext2D.prototype.fillText`. By wrapping this native JS function, our script can capture any text (e.g., multipliers, numbers) at the exact moment the game attempts to draw it onto a canvas.
+    3.  **Cross-Frame Messaging:** Use `window.postMessage` within the injected frames to bubble extracted data up to the main window, where `AndroidBridge` can receive it.
+*   **Action Plan:** Add an advanced "Deep Extraction" toggle in settings. When enabled, it activates the `shouldInterceptRequest` proxy injection and the Canvas hooking script.
+
 ---
 
 ## 3. Implementation Roadmap
@@ -51,3 +63,7 @@ This plan details how we will incorporate and build upon these concepts to solid
 
 ### Phase 4: Crawler Reliability 
 *   Replace standard interval polling with a robust DOM `MutationObserver` bridge, passing real-time updates directly into the `PredictionEngine` via JavascriptInterface.
+
+### Phase 5: Deep Extraction (Iframes & Canvas)
+*   Implement `shouldInterceptRequest` inside `KetayPredictorApp.kt` to parse and inject JS into nested iframes.
+*   Add a Canvas2D text-interception module to `MapperJS.kt` to capture strings painted by canvas-based games.

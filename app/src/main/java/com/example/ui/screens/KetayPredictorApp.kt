@@ -82,11 +82,11 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
         if (isLivePollingActive && activeTool != "Inactive") {
             val profile = viewModel.getToolProfile(activeTool)
             if (profile != null && profile.cssSelector.isNotEmpty()) {
-                val observerScript = com.example.MapperJS.getObserverScript(profile.cssSelector)
-                webViewRef?.evaluateJavascript(observerScript, null)
+                val safeSelector = profile.cssSelector.replace("\"", "\\\"").replace("'", "\\'")
+                webViewRef?.evaluateJavascript("if(window.startDomExtraction) window.startDomExtraction('$safeSelector');", null)
             }
         } else {
-            webViewRef?.evaluateJavascript("if(window.activePredictiveObserver) { window.activePredictiveObserver.disconnect(); }", null)
+            webViewRef?.evaluateJavascript("if(window.__activeDomObserver) { window.__activeDomObserver.disconnect(); }", null)
         }
     }
     LaunchedEffect(isSelectionModeActive, isSiteRuleSelectionMode) {
@@ -593,6 +593,22 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 }
                             }
                         }, "AndroidBridge")
+                        
+                        com.example.ui.utils.BridgeMapper.setupWebMessageListener(this, coroutineScope) { type, data ->
+                            coroutineScope.launch {
+                                val tool = viewModel.activeTool.value
+                                if (tool == "Keno") {
+                                    val history = data.split(",").mapNotNull { it.trim().toIntOrNull() }
+                                    val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(history)
+                                    viewModel.setKenoData(prediction)
+                                } else if (tool == "Aviator") {
+                                    val history = data.split(",").mapNotNull { it.trim().replace("x", "").toDoubleOrNull() }
+                                    val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(history)
+                                    viewModel.setAviatorData(prediction)
+                                }
+                            }
+                        }
+
                         webViewClient = object : WebViewClient() {
                             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                                 super.onPageStarted(view, url, favicon)
