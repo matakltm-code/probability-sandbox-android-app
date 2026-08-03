@@ -58,4 +58,41 @@ object MapperJS {
             window.predictiveMapperEnabled = false;
         })();
     """.trimIndent()
+
+    fun getObserverScript(selector: String): String = """
+        (function() {
+            var safeSelector = "${selector.replace("\"", "\\\"").replace("'", "\\'")}";
+            var targetNode = document.querySelector(safeSelector);
+            if (!targetNode) {
+                // If the exact node is not found, try the parent of the matched elements, or observe body
+                var firstEl = document.querySelectorAll(safeSelector)[0];
+                targetNode = firstEl ? firstEl.parentNode : document.body;
+            }
+            if (window.activePredictiveObserver) {
+                window.activePredictiveObserver.disconnect();
+            }
+            
+            function extractAndSend() {
+                var elements = document.querySelectorAll(safeSelector);
+                var allText = '';
+                for (var i = 0; i < elements.length; i++) {
+                    allText += elements[i].innerText + ' ';
+                }
+                var items = allText.split(/\s+/).filter(Boolean);
+                if (window.AndroidBridge && window.AndroidBridge.onNewDataExtracted) {
+                    window.AndroidBridge.onNewDataExtracted(items.join(','));
+                }
+            }
+            
+            window.activePredictiveObserver = new MutationObserver((mutationsList) => {
+                extractAndSend();
+            });
+            window.activePredictiveObserver.observe(targetNode, { childList: true, subtree: true, characterData: true });
+            
+            // Trigger initial
+            extractAndSend();
+            
+            return 'Observer attached';
+        })();
+    """.trimIndent()
 }

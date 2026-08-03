@@ -80,48 +80,13 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
     val coroutineScope = rememberCoroutineScope()
     LaunchedEffect(isLivePollingActive, activeTool) {
         if (isLivePollingActive && activeTool != "Inactive") {
-            while (true) {
-                kotlinx.coroutines.delay(2000)
-                val profile = viewModel.getToolProfile(activeTool)
-                if (profile != null && profile.cssSelector.isNotEmpty()) {
-                    val safeSelector = profile.cssSelector.replace("'", "\'")
-                    // Extract all child text elements, split by spaces or newlines to get individual numbers
-                    val jsExtractor = "(function() { " +
-                        "try { " +
-                        "  var elements = document.querySelectorAll('" + safeSelector + "'); " +
-                        "  var allText = ''; " +
-                        "  for (var i = 0; i < elements.length; i++) { " +
-                        "    allText += elements[i].innerText + ' '; " +
-                        "  } " +
-                        "  var items = allText.split(/\\\\s+/).filter(Boolean); " +
-                        "  return items.join(', '); " +
-                        "} catch(e) { return 'error'; } " +
-                    "})();"
-                    
-                    webViewRef?.evaluateJavascript(jsExtractor) { result ->
-                        val cleanResult = result?.removeSurrounding("\"")?.replace("\u003C", "<")?.trim() ?: "none"
-                        
-                        // Limit displayed history
-                        val historyItems = cleanResult.split(",").map { it.trim() }.filter { it.isNotEmpty() }
-                        val displayHistory = historyItems.takeLast(10).joinToString(", ")
-                        
-                        if (activeTool == "Keno") {
-                            // Generate 5 predicted tickets of 10 numbers each
-                            val predictedTickets = java.lang.StringBuilder()
-                            predictedTickets.append("Target Data: $displayHistory\n\nPredicted Tickets:\n")
-                            for (i in 1..5) {
-                                val ticketNums = (1..80).shuffled().take(10).sorted().joinToString(" ")
-                                predictedTickets.append("T$i: $ticketNums\n")
-                            }
-                            viewModel.setKenoData(predictedTickets.toString().trim())
-                        } else if (activeTool == "Aviator") {
-                            // Predict the next multiplier based on pseudo-analysis
-                            val multiplier = String.format(java.util.Locale.US, "%.2fx", kotlin.random.Random.nextDouble(1.01, 5.50))
-                            viewModel.setAviatorData("Target Data: $displayHistory\n\nNext Expected Multiplier:\n$multiplier")
-                        }
-                    }
-                }
+            val profile = viewModel.getToolProfile(activeTool)
+            if (profile != null && profile.cssSelector.isNotEmpty()) {
+                val observerScript = com.example.MapperJS.getObserverScript(profile.cssSelector)
+                webViewRef?.evaluateJavascript(observerScript, null)
             }
+        } else {
+            webViewRef?.evaluateJavascript("if(window.activePredictiveObserver) { window.activePredictiveObserver.disconnect(); }", null)
         }
     }
     LaunchedEffect(isSelectionModeActive, isSiteRuleSelectionMode) {
@@ -604,12 +569,26 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                             @JavascriptInterface
                             fun onElementSelected(cssSelector: String, text: String) {
                                 coroutineScope.launch {
-                                    viewModel.setSelectedElement(cssSelector, selectedText)
-                                    viewModel.setSelectedElement(selectedCssSelector, text)
+                                    viewModel.setSelectedElement(cssSelector, text)
                                     if (isSiteRuleSelectionMode) {
                                         viewModel.setShowSiteRuleDialog(true)
                                     } else {
                                         viewModel.setShowMappingDialog(true)
+                                    }
+                                }
+                            }
+                            @JavascriptInterface
+                            fun onNewDataExtracted(data: String) {
+                                coroutineScope.launch {
+                                    val tool = viewModel.activeTool.value
+                                    if (tool == "Keno") {
+                                        val history = data.split(",").mapNotNull { it.trim().toIntOrNull() }
+                                        val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(history)
+                                        viewModel.setKenoData(prediction)
+                                    } else if (tool == "Aviator") {
+                                        val history = data.split(",").mapNotNull { it.trim().replace("x", "").toDoubleOrNull() }
+                                        val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(history)
+                                        viewModel.setAviatorData(prediction)
                                     }
                                 }
                             }
@@ -777,15 +756,18 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                                 "return texts.join(', '); " +
                                             "})();"
                                             webViewRef?.evaluateJavascript(jsExtractor) { result ->
-                                                val cleanResult = result?.removeSurrounding("\"") ?: "none"
+                                                val cleanResult = result?.removeSurrounding("\"")?.trim() ?: "none"
+                                                val items = cleanResult.split(",").mapNotNull { it.trim().substringBefore(" ").replace("x", "").toDoubleOrNull() }
+                                                
                                                 if (activeTool == "Keno") {
-                                                    val newNumbers = (1..80).shuffled().take(5).joinToString("-")
-                                                    viewModel.setKenoData("Mapped Data: $cleanResult\nPattern: $newNumbers")
-                                                    activityLogViewModel.logActivity("Extracted Keno pattern: $newNumbers based on mapping")
+                                                    val history = items.map { it.toInt() }
+                                                    val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(history)
+                                                    viewModel.setKenoData(prediction)
+                                                    activityLogViewModel.logActivity("Manual extracted Keno patterns")
                                                 } else if (activeTool == "Aviator") {
-                                                    val multiplier = String.format(Locale.US, "%.2fx", kotlin.random.Random.nextDouble(1.0, 10.0))
-                                                    viewModel.setAviatorData("Mapped Data: $cleanResult\nTrend: $multiplier")
-                                                    activityLogViewModel.logActivity("Extracted Aviator trend: $multiplier based on mapping")
+                                                    val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(items)
+                                                    viewModel.setAviatorData(prediction)
+                                                    activityLogViewModel.logActivity("Manual extracted Aviator trend")
                                                 }
                                             }
                                         } else {
@@ -835,38 +817,40 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                         Spacer(modifier = Modifier.height(8.dp))
                         if (activePanelTab == "Predictor") {
                             // Tool Switcher removed, now in top dropdown
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Map Page Elements", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
-                            Switch(
-                                checked = isSelectionModeActive,
-                                onCheckedChange = { viewModel.setSelectionModeActive(it) },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                    checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                        if (activeTool != "Inactive") {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Map Page Elements", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
+                                Switch(
+                                    checked = isSelectionModeActive,
+                                    onCheckedChange = { viewModel.setSelectionModeActive(it) },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                        checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                    )
                                 )
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text("Auto Extraction (Live Sync)", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
-                            Switch(
-                                checked = isLivePollingActive,
-                                onCheckedChange = { viewModel.setLivePollingActive(it) },
-                                colors = SwitchDefaults.colors(
-                                    checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                    checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("Auto Extraction (Live Sync)", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
+                                Switch(
+                                    checked = isLivePollingActive,
+                                    onCheckedChange = { viewModel.setLivePollingActive(it) },
+                                    colors = SwitchDefaults.colors(
+                                        checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                        checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                    )
                                 )
-                            )
+                            }
+                            Spacer(modifier = Modifier.height(12.dp))
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
                         if (activeTool == "Inactive") {
                             // Hidden content, maybe just a placeholder
                             Box(
