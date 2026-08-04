@@ -78,24 +78,40 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
             _aviatorHistoryList.value = newItems
             return
         }
-        
-        // Find maximum overlap between end of currentList and start of newItems
-        var overlapSize = 0
+
+        if (java.util.Collections.indexOfSubList(currentList, newItems) != -1) {
+            return // newItems is already fully contained in currentList
+        }
+
+        var endOverlap = 0
         val maxPossibleOverlap = minOf(currentList.size, newItems.size)
         
         for (size in maxPossibleOverlap downTo 1) {
             val suffix = currentList.takeLast(size)
             val prefix = newItems.take(size)
             if (suffix == prefix) {
-                overlapSize = size
+                endOverlap = size
                 break
             }
         }
-        
-        // Append only the non-overlapping new items
-        if (overlapSize < newItems.size) {
-            val itemsToAdd = newItems.drop(overlapSize)
-            _aviatorHistoryList.value = currentList + itemsToAdd
+
+        var startOverlap = 0
+        for (size in maxPossibleOverlap downTo 1) {
+            val suffix = newItems.takeLast(size)
+            val prefix = currentList.take(size)
+            if (suffix == prefix) {
+                startOverlap = size
+                break
+            }
+        }
+
+        if (endOverlap >= startOverlap && endOverlap > 0) {
+            _aviatorHistoryList.value = currentList + newItems.drop(endOverlap)
+        } else if (startOverlap > endOverlap && startOverlap > 0) {
+            _aviatorHistoryList.value = newItems.dropLast(startOverlap) + currentList
+        } else {
+            // Check if there is any sublist match in newItems from currentList to avoid duplicate explosion
+            _aviatorHistoryList.value = currentList + newItems
         }
     }
 
