@@ -23,9 +23,6 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
       
-    - name: Generate Gradle Wrapper
-      run: gradle wrapper
-      
     - name: Generate Dummy google-services.json
       run: |
         echo '{"project_info":{"project_number":"12345","project_id":"dummy","storage_bucket":"dummy"},"client":[{"client_info":{"mobilesdk_app_id":"1:12345:android:12345","android_client_info":{"package_name":"app.probabilitysandbox.android"}},"oauth_client":[],"api_key":[{"current_key":"dummy"}],"services":{"appinvite_service":{"other_platform_oauth_client":[]}}}]}' > app/google-services.json
@@ -47,7 +44,7 @@ jobs:
         STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'temp1234' }}
         KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || 'temp1234' }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'upload' }}
-      run: ./gradlew assembleRelease
+      run: gradle assembleRelease
       
     - name: Get Commit Message
       id: get_commit
