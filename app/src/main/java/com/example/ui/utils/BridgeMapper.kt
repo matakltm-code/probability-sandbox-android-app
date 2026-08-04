@@ -38,15 +38,25 @@ object BridgeMapper {
                 var targetNode = document.body;
                 if (!targetNode) return;
                 
+                // Generalize the selector if it points to a specific list item
+                var genSelector = selector.replace(/(:nth-of-type\(\d+\)|:nth-child\(\d+\))([^:]*)$/, "$2");
+                if (document.querySelectorAll(genSelector).length > 1) {
+                    selector = genSelector;
+                }
+                
+                var lastHistory = "";
+                
                 function extractAndSend() {
                     var elements = document.querySelectorAll(selector);
-                    var allText = '';
+                    var allText = [];
                     for (var i = 0; i < elements.length; i++) {
-                        allText += elements[i].innerText + ' ';
+                        allText.push(elements[i].innerText.trim());
                     }
-                    var items = allText.split(/\s+/).filter(Boolean);
-                    if (items.length > 0 && window.$BRIDGE_NAME) {
-                        window.$BRIDGE_NAME.postMessage(JSON.stringify({ type: 'dom', data: items.join(',') }));
+                    var items = allText.filter(Boolean);
+                    var newHistory = items.join(',');
+                    if (newHistory !== lastHistory && items.length > 0 && window.$BRIDGE_NAME) {
+                        lastHistory = newHistory;
+                        window.$BRIDGE_NAME.postMessage(JSON.stringify({ type: 'dom', data: newHistory }));
                     }
                 }
                 

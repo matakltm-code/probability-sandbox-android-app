@@ -120,12 +120,12 @@ object PredictionEngine {
             append("--- Aviator Trend Engine ---\n")
             append("Recent Multiplier: ${history.last()}x\n")
             append("Low Crash Prob: ${(probLow * 100).toInt()}%\n")
-            append("[Conservative]: Cashout @ ${conservativeTarget}x\n")
-            append("[Trend-Rider]: Cashout @ ${trendTarget}x\n")
+            append("[Conservative]: Predicted ${conservativeTarget}x\n")
+            append("[Trend-Rider]: Predicted ${trendTarget}x\n")
             if (probLow < 0.4) {
-                append("[Sniper Hunt]: WAIT FOR ${sniperTarget}x")
+                append("[Sniper Hunt]: Potential ${sniperTarget}x")
             } else {
-                append("[Sniper Hunt]: NOT RECOMMENDED")
+                append("[Sniper Hunt]: Low Chance")
             }
         }
     }
