@@ -26,9 +26,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.unit.IntOffset
+import kotlin.math.roundToInt
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
@@ -50,6 +56,7 @@ import androidx.compose.ui.platform.LocalContext
 import java.util.Locale
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.lifecycle.viewmodel.compose.viewModel
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogViewModel, onNavigateToLogs: () -> Unit, onNavigateToDeveloper: () -> Unit, viewModel: HomeScreenViewModel = viewModel()) {
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -57,6 +64,8 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
     val isWebViewVisible by viewModel.isWebViewVisible.collectAsStateWithLifecycle()
     var webViewRef by remember { mutableStateOf<WebView?>(null) }
     val isControlPanelExpanded by viewModel.isControlPanelExpanded.collectAsStateWithLifecycle()
+    var panelOffsetX by remember { mutableFloatStateOf(0f) }
+    var panelOffsetY by remember { mutableFloatStateOf(0f) }
     val targetUrl by viewModel.targetUrl.collectAsStateWithLifecycle()
     val showExitConfirmation by viewModel.showExitConfirmation.collectAsStateWithLifecycle()
     val isPageLoading by viewModel.isPageLoading.collectAsStateWithLifecycle()
@@ -712,6 +721,14 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .padding(8.dp)
+                    .offset { IntOffset(panelOffsetX.roundToInt(), panelOffsetY.roundToInt()) }
+                    .pointerInput(Unit) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            panelOffsetX += dragAmount.x
+                            panelOffsetY += dragAmount.y
+                        }
+                    }
             ) {
                 Column(
                     modifier = Modifier
@@ -819,49 +836,56 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                         }
                         // Green refresh button
                         if (activeTool != "Inactive") {
-                            IconButton(
-                                onClick = {
-                                    coroutineScope.launch {
-                                        val profile = viewModel.getToolProfile(activeTool)
-                                        if (profile != null && profile.cssSelector.isNotEmpty()) {
-                                            val safeSelector = profile.cssSelector.replace("\"", "\\\"").replace("'", "\\'")
-                                            val broadcastScript = """
-                                                (function() {
-                                                    var msg = JSON.stringify({ type: 'startDomExtraction', selector: '$safeSelector' });
-                                                    if(window.startDomExtraction) window.startDomExtraction('$safeSelector');
-                                                    try {
-                                                        for (var i = 0; i < window.frames.length; i++) {
-                                                            window.frames[i].postMessage(msg, '*');
-                                                        }
-                                                    } catch(e) {}
-                                                })();
-                                            """.trimIndent()
-                                            webViewRef?.evaluateJavascript(broadcastScript, null)
-                                            activityLogViewModel.logActivity("Manual extracted $activeTool patterns")
-                                        } else {
-                                            if (activeTool == "Keno") {
-                                                webViewRef?.evaluateJavascript(
-                                                    "(function() { return 'extracted_keno_data'; })();"
-                                                ) { result ->
-                                                    val newNumbers = (1..80).shuffled().take(5).joinToString("-")
-                                                    viewModel.setKenoData("Hot Pairs: 12-45, 7-22\nFreq: 12 (5x), 45 (4x)\nRecent Pattern: $newNumbers\nExtracted: $result")
-                                                    activityLogViewModel.logActivity("Extracted Keno pattern: $newNumbers")
-                                                }
-                                            } else if (activeTool == "Aviator") {
-                                                webViewRef?.evaluateJavascript(
-                                                    "(function() { return 'extracted_aviator_data'; })();"
-                                                ) { result ->
-                                                    val multiplier = String.format(Locale.US, "%.2fx", kotlin.random.Random.nextDouble(1.0, 10.0))
-                                                    viewModel.setAviatorData("Trend: Upward\nLast Multipliers: $multiplier, 1.25x, 2.10x\nExtracted: $result")
-                                                    activityLogViewModel.logActivity("Extracted Aviator trend: $multiplier")
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
+                            Box(
                                 modifier = Modifier
                                     .size(36.dp)
                                     .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(18.dp))
+                                    .combinedClickable(
+                                        onClick = {
+                                            coroutineScope.launch {
+                                                val profile = viewModel.getToolProfile(activeTool)
+                                                if (profile != null && profile.cssSelector.isNotEmpty()) {
+                                                    val safeSelector = profile.cssSelector.replace("\"", "\\\"").replace("'", "\\'")
+                                                    val broadcastScript = """
+                                                        (function() {
+                                                            var msg = JSON.stringify({ type: 'startDomExtraction', selector: '$safeSelector' });
+                                                            if(window.startDomExtraction) window.startDomExtraction('$safeSelector');
+                                                            try {
+                                                                for (var i = 0; i < window.frames.length; i++) {
+                                                                    window.frames[i].postMessage(msg, '*');
+                                                                }
+                                                            } catch(e) {}
+                                                        })();
+                                                    """.trimIndent()
+                                                    webViewRef?.evaluateJavascript(broadcastScript, null)
+                                                    activityLogViewModel.logActivity("Manual extracted $activeTool patterns")
+                                                } else {
+                                                    if (activeTool == "Keno") {
+                                                        webViewRef?.evaluateJavascript(
+                                                            "(function() { return 'extracted_keno_data'; })();"
+                                                        ) { result ->
+                                                            val newNumbers = (1..80).shuffled().take(5).joinToString("-")
+                                                            viewModel.setKenoData("Hot Pairs: 12-45, 7-22\nFreq: 12 (5x), 45 (4x)\nRecent Pattern: $newNumbers\nExtracted: $result")
+                                                            activityLogViewModel.logActivity("Extracted Keno pattern: $newNumbers")
+                                                        }
+                                                    } else if (activeTool == "Aviator") {
+                                                        webViewRef?.evaluateJavascript(
+                                                            "(function() { return 'extracted_aviator_data'; })();"
+                                                        ) { result ->
+                                                            val multiplier = String.format(Locale.US, "%.2fx", kotlin.random.Random.nextDouble(1.0, 10.0))
+                                                            viewModel.setAviatorData("Trend: Upward\nLast Multipliers: $multiplier, 1.25x, 2.10x\nExtracted: $result")
+                                                            activityLogViewModel.logActivity("Extracted Aviator trend: $multiplier")
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        },
+                                        onLongClick = {
+                                            webViewRef?.reload()
+                                            activityLogViewModel.logActivity("Reloaded web page")
+                                        }
+                                    ),
+                                contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Refresh,
