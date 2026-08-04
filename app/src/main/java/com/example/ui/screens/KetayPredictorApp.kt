@@ -15,6 +15,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
@@ -649,8 +651,10 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                         val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(history)
                                         viewModel.setKenoData(prediction)
                                     } else if (tool == "Aviator") {
-                                        val history = data.split(",").mapNotNull { it.trim().replace("x", "").toDoubleOrNull() }
-                                        val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(history)
+                                        val newHistory = data.split(",").mapNotNull { it.trim().replace("x", "").toDoubleOrNull() }
+                                        viewModel.updateAviatorHistory(newHistory)
+                                        val aggregatedHistory = viewModel.aviatorHistoryList.value
+                                        val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(aggregatedHistory)
                                         viewModel.setAviatorData(prediction)
                                     }
                                 }
@@ -667,8 +671,10 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                         val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(history)
                                         viewModel.setKenoData(prediction)
                                     } else if (tool == "Aviator") {
-                                        val history = data.split(",").mapNotNull { it.trim().replace("x", "").toDoubleOrNull() }
-                                        val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(history)
+                                        val newHistory = data.split(",").mapNotNull { it.trim().replace("x", "").toDoubleOrNull() }
+                                        viewModel.updateAviatorHistory(newHistory)
+                                        val aggregatedHistory = viewModel.aviatorHistoryList.value
+                                        val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(aggregatedHistory)
                                         viewModel.setAviatorData(prediction)
                                     }
                                 } else if (type == "canvas") {
@@ -977,6 +983,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .heightIn(max = 200.dp)
                                     .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                                     .border(1.dp, if (flashAlpha.value > 0) MaterialTheme.colorScheme.primary.copy(alpha = flashAlpha.value) else Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
                             ) {
@@ -985,7 +992,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                         .matchParentSize()
                                         .background(Color.White.copy(alpha = flashAlpha.value * 0.3f), RoundedCornerShape(12.dp))
                                 )
-                                Box(modifier = Modifier.padding(16.dp)) {
+                                Box(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
                                     if (activeTool == "Keno") {
                                     Text(
                                         text = kenoData,

@@ -69,6 +69,37 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     private val _aviatorData = MutableStateFlow("Ready to extract...")
     val aviatorData: StateFlow<String> = _aviatorData.asStateFlow()
 
+    private val _aviatorHistoryList = MutableStateFlow<List<Double>>(emptyList())
+    val aviatorHistoryList: StateFlow<List<Double>> = _aviatorHistoryList.asStateFlow()
+
+    fun updateAviatorHistory(newItems: List<Double>) {
+        val currentList = _aviatorHistoryList.value
+        if (currentList.isEmpty()) {
+            _aviatorHistoryList.value = newItems
+            return
+        }
+        
+        // Find maximum overlap between end of currentList and start of newItems
+        var overlapSize = 0
+        val maxPossibleOverlap = minOf(currentList.size, newItems.size)
+        
+        for (size in maxPossibleOverlap downTo 1) {
+            val suffix = currentList.takeLast(size)
+            val prefix = newItems.take(size)
+            if (suffix == prefix) {
+                overlapSize = size
+                break
+            }
+        }
+        
+        // Append only the non-overlapping new items
+        if (overlapSize < newItems.size) {
+            val itemsToAdd = newItems.drop(overlapSize)
+            _aviatorHistoryList.value = currentList + itemsToAdd
+        }
+    }
+
+
     private val _liveCanvasData = MutableStateFlow("")
     val liveCanvasData: StateFlow<String> = _liveCanvasData.asStateFlow()
 

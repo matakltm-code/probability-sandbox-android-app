@@ -85,12 +85,11 @@ object PredictionEngine {
     fun synthesizeAviatorPrediction(history: List<Double>): String {
         if (history.isEmpty()) return "Not enough data to predict."
         
-        // Simplified Markov Chain State Transitions
-        // States: Low < 1.5x, Medium 1.5x - 4.9x, High >= 5x
+        // Aviator Brackets: Blue (< 2.0x), Purple (2.0x - 10.0x), Pink (>= 10.0x)
         fun getState(m: Double) = when {
-            m < 1.5 -> "Low"
-            m < 5.0 -> "Medium"
-            else -> "High"
+            m < 2.0 -> "Blue (Low)"
+            m < 10.0 -> "Purple (Medium)"
+            else -> "Pink (High)"
         }
         
         val lastState = getState(history.last())
@@ -103,30 +102,35 @@ object PredictionEngine {
             if (getState(history[i]) == lastState) {
                 totalTransitions++
                 when (getState(history[i+1])) {
-                    "Low" -> lowCount++
-                    "Medium" -> medCount++
-                    "High" -> highCount++
+                    "Blue (Low)" -> lowCount++
+                    "Purple (Medium)" -> medCount++
+                    "Pink (High)" -> highCount++
                 }
             }
         }
         
-        val probLow = if (totalTransitions > 0) lowCount.toDouble() / totalTransitions else 0.33
+        val probLow = if (totalTransitions > 0) lowCount.toDouble() / totalTransitions else 0.50
+        val probMed = if (totalTransitions > 0) medCount.toDouble() / totalTransitions else 0.40
+        val probHigh = if (totalTransitions > 0) highCount.toDouble() / totalTransitions else 0.10
         
         val conservativeTarget = 1.35
-        val trendTarget = 2.0
-        val sniperTarget = 5.5
+        val trendTarget = if (probMed > 0.4) 2.5 else 1.8
+        val sniperTarget = if (probHigh > 0.15) 12.0 else 5.5
         
         return buildString {
             append("--- Aviator Trend Engine ---\n")
             append("Recent Multiplier: ${history.last()}x\n")
-            append("Low Crash Prob: ${(probLow * 100).toInt()}%\n")
+            append("Current Trend: $lastState\n")
+            append("Risk of Early Crash (< 2.0x): ${(probLow * 100).toInt()}%\n")
             append("[Conservative]: Predicted ${conservativeTarget}x\n")
             append("[Trend-Rider]: Predicted ${trendTarget}x\n")
-            if (probLow < 0.4) {
-                append("[Sniper Hunt]: Potential ${sniperTarget}x")
+            if (probHigh > 0.1) {
+                append("[Sniper Hunt]: Potential ${sniperTarget}x\n")
             } else {
-                append("[Sniper Hunt]: Low Chance")
+                append("[Sniper Hunt]: Wait (Low Probability)\n")
             }
+            append("\n[Live Synced History (${history.size})]:\n")
+            append(history.joinToString(", ") { "${it}x" })
         }
     }
 }
