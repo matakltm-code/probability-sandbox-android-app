@@ -15,6 +15,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Code
@@ -86,6 +88,16 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
     val isDeepExtractionEnabled by viewModel.isDeepExtractionEnabled.collectAsStateWithLifecycle()
     val siteRules by viewModel.siteRules.collectAsStateWithLifecycle()
     val coroutineScope = rememberCoroutineScope()
+    
+    val flashAlpha = remember { Animatable(0f) }
+    
+    LaunchedEffect(kenoData, aviatorData) {
+        if (kenoData.isNotEmpty() || aviatorData.isNotEmpty()) {
+            flashAlpha.snapTo(0.8f)
+            flashAlpha.animateTo(0f, animationSpec = tween(durationMillis = 1000))
+        }
+    }
+    
     LaunchedEffect(isLivePollingActive, activeTool) {
         if (isLivePollingActive && activeTool != "Inactive") {
             val profile = viewModel.getToolProfile(activeTool)
@@ -966,10 +978,15 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
-                                    .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                                    .padding(16.dp)
+                                    .border(1.dp, if (flashAlpha.value > 0) MaterialTheme.colorScheme.primary.copy(alpha = flashAlpha.value) else Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
                             ) {
-                                if (activeTool == "Keno") {
+                                Box(
+                                    modifier = Modifier
+                                        .matchParentSize()
+                                        .background(Color.White.copy(alpha = flashAlpha.value * 0.3f), RoundedCornerShape(12.dp))
+                                )
+                                Box(modifier = Modifier.padding(16.dp)) {
+                                    if (activeTool == "Keno") {
                                     Text(
                                         text = kenoData,
                                         color = com.example.ui.theme.KenoGreen,
@@ -996,6 +1013,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                             )
                                         }
                                     }
+                                }
                                 }
                             }
                         }
