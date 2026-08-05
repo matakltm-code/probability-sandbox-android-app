@@ -65,6 +65,52 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     private val _kenoData = MutableStateFlow("Ready to extract...")
     val kenoData: StateFlow<String> = _kenoData.asStateFlow()
+    
+    private val _kenoHistoryList = MutableStateFlow<List<Int>>(emptyList())
+    val kenoHistoryList: StateFlow<List<Int>> = _kenoHistoryList.asStateFlow()
+
+    fun updateKenoHistory(newItems: List<Int>) {
+        val currentList = _kenoHistoryList.value
+        if (currentList.isEmpty()) {
+            _kenoHistoryList.value = newItems
+            return
+        }
+
+        if (java.util.Collections.indexOfSubList(currentList, newItems) != -1) {
+            return // newItems is already fully contained in currentList
+        }
+
+        var endOverlap = 0
+        val maxPossibleOverlap = minOf(currentList.size, newItems.size)
+        
+        for (size in maxPossibleOverlap downTo 1) {
+            val suffix = currentList.takeLast(size)
+            val prefix = newItems.take(size)
+            if (suffix == prefix) {
+                endOverlap = size
+                break
+            }
+        }
+
+        var startOverlap = 0
+        for (size in maxPossibleOverlap downTo 1) {
+            val suffix = newItems.takeLast(size)
+            val prefix = currentList.take(size)
+            if (suffix == prefix) {
+                startOverlap = size
+                break
+            }
+        }
+
+        if (endOverlap >= startOverlap && endOverlap > 0) {
+            _kenoHistoryList.value = currentList + newItems.drop(endOverlap)
+        } else if (startOverlap > endOverlap && startOverlap > 0) {
+            _kenoHistoryList.value = newItems.dropLast(startOverlap) + currentList
+        } else {
+            // Check if there is any sublist match in newItems from currentList to avoid duplicate explosion
+            _kenoHistoryList.value = currentList + newItems
+        }
+    }
 
     private val _aviatorData = MutableStateFlow("Ready to extract...")
     val aviatorData: StateFlow<String> = _aviatorData.asStateFlow()

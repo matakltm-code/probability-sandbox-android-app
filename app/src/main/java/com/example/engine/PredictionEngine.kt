@@ -68,14 +68,23 @@ object PredictionEngine {
             (1..80).shuffled().take(10).sorted()
         }
 
+        val oddCount = history.count { it % 2 != 0 }
+        val oddPercent = if (history.isNotEmpty()) (oddCount.toDouble() / history.size * 100).toInt() else 0
+        val highCount = history.count { it > 40 }
+        val highPercent = if (history.isNotEmpty()) (highCount.toDouble() / history.size * 100).toInt() else 0
+
         return buildString {
             append("--- Keno Matrix Engine ---\n")
-            append("History length: ${history.size}\n")
-            append("[T1 - Hot]: ${ticket1.joinToString("-")}\n")
-            append("[T2 - Cold]: ${ticket2.joinToString("-")}\n")
-            append("[T3 - Bal]: ${ticket3.joinToString("-")}\n")
-            append("[T4 - Sect]: ${ticket4.joinToString("-")}\n")
-            append("[T5 - Mrkv]: ${ticket5.joinToString("-")}")
+            append("Recent Drawn Number: ${history.last()}\n")
+            append("Odd/Even Bias: ${oddPercent}% Odd\n")
+            append("High/Low Bias: ${highPercent}% High (>40)\n\n")
+            append("[T1 - Hot Streak]: ${ticket1.joinToString("-")}\n")
+            append("[T2 - Cold Overdue]: ${ticket2.joinToString("-")}\n")
+            append("[T3 - Balanced]: ${ticket3.joinToString("-")}\n")
+            append("[T4 - Sector Prox]: ${ticket4.joinToString("-")}\n")
+            append("[T5 - Markov Chain]: ${ticket5.joinToString("-")}\n")
+            append("\n[Live Synced History (${history.size})]:\n")
+            append(history.joinToString(", "))
         }
     }
 

@@ -647,8 +647,10 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 coroutineScope.launch {
                                     val tool = viewModel.activeTool.value
                                     if (tool == "Keno") {
-                                        val history = data.split(",").mapNotNull { it.trim().toIntOrNull() }
-                                        val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(history)
+                                        val newHistory = data.split(",").mapNotNull { it.trim().toIntOrNull() }
+                                        viewModel.updateKenoHistory(newHistory)
+                                        val aggregatedHistory = viewModel.kenoHistoryList.value
+                                        val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(aggregatedHistory)
                                         viewModel.setKenoData(prediction)
                                     } else if (tool == "Aviator") {
                                         val newHistory = data.split(",").mapNotNull { it.trim().replace("x", "").toDoubleOrNull() }
@@ -667,8 +669,10 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 if (type == "dom") {
                                     val data = data1
                                     if (tool == "Keno") {
-                                        val history = data.split(",").mapNotNull { it.trim().toIntOrNull() }
-                                        val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(history)
+                                        val newHistory = data.split(",").mapNotNull { it.trim().toIntOrNull() }
+                                        viewModel.updateKenoHistory(newHistory)
+                                        val aggregatedHistory = viewModel.kenoHistoryList.value
+                                        val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(aggregatedHistory)
                                         viewModel.setKenoData(prediction)
                                     } else if (tool == "Aviator") {
                                         val newHistory = data.split(",").mapNotNull { it.trim().replace("x", "").toDoubleOrNull() }
