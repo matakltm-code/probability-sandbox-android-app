@@ -157,9 +157,20 @@ private val _isProcessingData = MutableStateFlow(false)
         val trendTarget = if (probMed > 0.4) 2.5 else 1.8
         val sniperTarget = if (probHigh > 0.15) 12.0 else 5.5
         
+        // Calculate Confidence Score
+        val n = history.size
+        val sampleConfidence = minOf(n.toDouble() / 100.0, 1.0) * 50.0
+        val mean = if (n > 0) history.sum() / n else 0.0
+        val variance = if (n > 0) history.sumOf { (it - mean) * (it - mean) } / n else 0.0
+        val stdDev = kotlin.math.sqrt(variance)
+        val cv = if (mean > 0) stdDev / mean else 0.0
+        val patternConfidence = maxOf(0.0, 45.0 - (cv * 10.0)).coerceAtMost(45.0)
+        val totalConfidence = (sampleConfidence + patternConfidence + 5.0).toInt().coerceIn(5, 99)
+        
         return buildString {
             append("--- Aviator Trend Engine (Local DB) ---\n")
             append("Analysis: Last 14 days of historical data (${history.size} records)\n")
+            append("Engine Confidence Score: ${totalConfidence}%\n")
             append("Recent Multiplier: ${history.last()}x\n")
             append("Current Trend: $lastState\n")
             append("Risk of Early Crash (< 2.0x): ${(probLow * 100).toInt()}%\n")

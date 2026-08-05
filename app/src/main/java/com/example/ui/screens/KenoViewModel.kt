@@ -178,9 +178,24 @@ private val _isProcessingData = MutableStateFlow(false)
         val highCount = history.count { it > 40 }
         val highPercent = if (history.isNotEmpty()) (highCount.toDouble() / history.size * 100).toInt() else 0
 
+        // Calculate Confidence Score
+        val sampleConfidence = minOf(n.toDouble() / 200.0, 1.0) * 60.0
+        val meanFreq = n.toDouble() * (20.0 / 80.0)
+        var sumSquaredDiff = 0.0
+        for (i in 1..80) {
+            val freq = frequencies.getOrDefault(i, 0).toDouble()
+            sumSquaredDiff += (freq - meanFreq) * (freq - meanFreq)
+        }
+        val variance = sumSquaredDiff / 80.0
+        val expectedVariance = n * 0.1875
+        val varianceRatio = if (expectedVariance > 0) variance / expectedVariance else 1.0
+        val patternConfidence = minOf(maxOf(varianceRatio - 1.0, 0.0) * 20.0, 35.0)
+        val totalConfidence = (sampleConfidence + patternConfidence + 5.0).toInt().coerceIn(5, 99)
+
         return buildString {
             append("--- Keno Matrix Engine (Local DB) ---\n")
             append("Analysis: Last 14 days of historical data (${history.size} records)\n")
+            append("Engine Confidence Score: ${totalConfidence}%\n")
             append("Recent Drawn Number: ${history.last()}\n")
             append("Odd/Even Bias: ${oddPercent}% Odd\n")
             append("High/Low Bias: ${highPercent}% High (>40)\n\n")
