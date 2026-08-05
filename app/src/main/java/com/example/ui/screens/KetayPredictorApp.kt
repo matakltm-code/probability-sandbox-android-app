@@ -14,6 +14,9 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -441,7 +444,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                     if (bookmarks.isEmpty()) {
                         Text("No bookmarks yet.", color = Color.Gray, fontSize = 12.sp)
                     } else {
-                        LazyColumn(modifier = Modifier.heightIn(max = 200.dp)) {
+                        LazyColumn(modifier = Modifier.heightIn(max = 350.dp)) {
                             items(bookmarks) { bookmark ->
                                 Row(
                                     modifier = Modifier
@@ -904,40 +907,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                         Spacer(modifier = Modifier.height(8.dp))
                         if (activePanelTab == "Predictor") {
                             // Tool Switcher removed, now in top dropdown
-                        if (activeTool != "Inactive") {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Map Page Elements", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
-                                Switch(
-                                    checked = isSelectionModeActive,
-                                    onCheckedChange = { viewModel.setSelectionModeActive(it) },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                        checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                    )
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text("Auto Extraction (Live Sync)", color = MaterialTheme.colorScheme.onBackground, fontSize = 14.sp)
-                                Switch(
-                                    checked = isLivePollingActive,
-                                    onCheckedChange = { viewModel.setLivePollingActive(it) },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = MaterialTheme.colorScheme.primary,
-                                        checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                    )
-                                )
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                        }
+
                         if (activeTool == "Inactive") {
                             // Hidden content, maybe just a placeholder
                             Box(
@@ -960,7 +930,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .heightIn(max = 200.dp)
+                                    .heightIn(max = 350.dp)
                                     .background(Color.Black.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                                     .border(1.dp, if (flashAlpha.value > 0) MaterialTheme.colorScheme.primary.copy(alpha = flashAlpha.value) else Color.White.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
                             ) {
@@ -979,13 +949,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                                 Text("Processing local history...", color = com.example.ui.theme.KenoGreen, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                                             }
                                         }
-                                        Text(
-                                            text = kenoData,
-                                            color = com.example.ui.theme.KenoGreen,
-                                            fontSize = 14.sp,
-                                            fontFamily = FontFamily.Monospace,
-                                            lineHeight = 20.sp
-                                        )
+                                        PredictionDisplay(text = kenoData, primaryColor = com.example.ui.theme.KenoGreen)
                                     }
                                 } else if (activeTool == "Aviator") {
                                     Column {
@@ -996,13 +960,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                                 Text("Processing local history...", color = com.example.ui.theme.AviatorYellow, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                                             }
                                         }
-                                        Text(
-                                            text = aviatorData,
-                                            color = com.example.ui.theme.AviatorYellow,
-                                            fontSize = 14.sp,
-                                            fontFamily = FontFamily.Monospace,
-                                            lineHeight = 20.sp
-                                        )
+                                        PredictionDisplay(text = aviatorData, primaryColor = com.example.ui.theme.AviatorYellow)
                                         if (liveCanvasData.isNotEmpty()) {
                                             Spacer(modifier = Modifier.height(8.dp))
                                             Text(
@@ -1026,6 +984,38 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                     .border(1.dp, Color.White.copy(alpha = 0.1f), RoundedCornerShape(8.dp))
                                     .padding(16.dp)
                             ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Map Predictor Elements", color = Color.White, fontSize = 14.sp)
+                                    Switch(
+                                        checked = isSelectionModeActive,
+                                        onCheckedChange = { viewModel.setSelectionModeActive(it) },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                            checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                        )
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Auto Extraction (Live Sync)", color = Color.White, fontSize = 14.sp)
+                                    Switch(
+                                        checked = isLivePollingActive,
+                                        onCheckedChange = { viewModel.setLivePollingActive(it) },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = MaterialTheme.colorScheme.primary,
+                                            checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                                        )
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1122,6 +1112,89 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                             fontSize = 14.sp,
                             fontFamily = FontFamily.Monospace
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun PredictionDisplay(text: String, primaryColor: Color) {
+    if (text.isEmpty() || text == "Ready to extract...") {
+        Text(text, color = primaryColor, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+        return
+    }
+
+    val lines = text.split("\n").filter { it.isNotBlank() }
+    var header = ""
+    val stats = mutableListOf<Pair<String, String>>()
+    val tickets = mutableListOf<Pair<String, String>>()
+    
+    for (line in lines) {
+        if (line.startsWith("---")) {
+            header = line.replace("---", "").trim()
+        } else if (line.startsWith("[")) {
+            val parts = line.split("]:", limit = 2)
+            if (parts.size == 2) {
+                tickets.add(parts[0].replace("[", "").trim() to parts[1].trim())
+            } else {
+                tickets.add("Target" to line)
+            }
+        } else if (line.contains(":")) {
+            val parts = line.split(":", limit = 2)
+            if (parts.size == 2) {
+                stats.add(parts[0].trim() to parts[1].trim())
+            }
+        } else {
+            stats.add("" to line.trim())
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        if (header.isNotEmpty()) {
+            Text(header, color = primaryColor, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = FontFamily.Monospace)
+            HorizontalDivider(color = primaryColor.copy(alpha = 0.3f), thickness = 1.dp)
+        }
+
+        if (stats.isNotEmpty()) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                for ((key, value) in stats) {
+                    Box(
+                        modifier = Modifier
+                            .background(Color.Black.copy(alpha = 0.4f), RoundedCornerShape(6.dp))
+                            .border(1.dp, primaryColor.copy(alpha = 0.2f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                    ) {
+                        Column {
+                            if (key.isNotEmpty()) {
+                                Text(key, color = Color.Gray, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                            }
+                            Text(value, color = Color.White, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            }
+        }
+
+        if (tickets.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                for ((key, value) in tickets) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(primaryColor.copy(alpha = 0.15f), RoundedCornerShape(6.dp))
+                            .border(1.dp, primaryColor.copy(alpha = 0.3f), RoundedCornerShape(6.dp))
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(key, color = primaryColor, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, modifier = Modifier.weight(1f))
+                        Text(value, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
                     }
                 }
             }
