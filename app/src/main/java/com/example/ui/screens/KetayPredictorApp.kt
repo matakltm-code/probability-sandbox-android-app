@@ -649,14 +649,32 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                     if (tool == "Keno") {
                                         val newHistory = data.split(",").mapNotNull { it.trim().toIntOrNull() }
                                         viewModel.updateKenoHistory(newHistory)
-                                        val aggregatedHistory = viewModel.kenoHistoryList.value
-                                        val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(aggregatedHistory)
+                                        viewModel.saveGameHistory("Keno", viewModel.targetUrl.value, data)
+                                        
+                                        val dbHistoryList = viewModel.kenoDbHistory.value.flatMap { it.data.split(",").mapNotNull { s -> s.trim().toIntOrNull() } }
+                                        val currentHistory = viewModel.kenoHistoryList.value
+                                        val combined = dbHistoryList + currentHistory
+                                        
+                                        val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(combined)
                                         viewModel.setKenoData(prediction)
                                     } else if (tool == "Aviator") {
                                         val newHistory = data.split(",").mapNotNull { it.trim().replace("x", "").toDoubleOrNull() }
                                         viewModel.updateAviatorHistory(newHistory)
-                                        val aggregatedHistory = viewModel.aviatorHistoryList.value
-                                        val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(aggregatedHistory)
+                                        viewModel.saveGameHistory("Aviator", viewModel.targetUrl.value, data)
+                                        
+                                        val dbHistoryList = viewModel.aviatorDbHistory.value.flatMap { it.data.split(",").mapNotNull { s -> s.trim().replace("x", "").toDoubleOrNull() } }
+                                        val currentHistory = viewModel.aviatorHistoryList.value
+                                        
+                                        // Simple combination, avoiding immediate duplicates
+                                        val combined = mutableListOf<Double>()
+                                        combined.addAll(dbHistoryList)
+                                        for (item in currentHistory) {
+                                            if (combined.isEmpty() || combined.last() != item) {
+                                                combined.add(item)
+                                            }
+                                        }
+                                        
+                                        val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(combined)
                                         viewModel.setAviatorData(prediction)
                                     }
                                 }
@@ -671,14 +689,32 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                     if (tool == "Keno") {
                                         val newHistory = data.split(",").mapNotNull { it.trim().toIntOrNull() }
                                         viewModel.updateKenoHistory(newHistory)
-                                        val aggregatedHistory = viewModel.kenoHistoryList.value
-                                        val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(aggregatedHistory)
+                                        viewModel.saveGameHistory("Keno", viewModel.targetUrl.value, data)
+                                        
+                                        val dbHistoryList = viewModel.kenoDbHistory.value.flatMap { it.data.split(",").mapNotNull { s -> s.trim().toIntOrNull() } }
+                                        val currentHistory = viewModel.kenoHistoryList.value
+                                        val combined = dbHistoryList + currentHistory
+                                        
+                                        val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(combined)
                                         viewModel.setKenoData(prediction)
                                     } else if (tool == "Aviator") {
                                         val newHistory = data.split(",").mapNotNull { it.trim().replace("x", "").toDoubleOrNull() }
                                         viewModel.updateAviatorHistory(newHistory)
-                                        val aggregatedHistory = viewModel.aviatorHistoryList.value
-                                        val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(aggregatedHistory)
+                                        viewModel.saveGameHistory("Aviator", viewModel.targetUrl.value, data)
+                                        
+                                        val dbHistoryList = viewModel.aviatorDbHistory.value.flatMap { it.data.split(",").mapNotNull { s -> s.trim().replace("x", "").toDoubleOrNull() } }
+                                        val currentHistory = viewModel.aviatorHistoryList.value
+                                        
+                                        // Simple combination, avoiding immediate duplicates
+                                        val combined = mutableListOf<Double>()
+                                        combined.addAll(dbHistoryList)
+                                        for (item in currentHistory) {
+                                            if (combined.isEmpty() || combined.last() != item) {
+                                                combined.add(item)
+                                            }
+                                        }
+                                        
+                                        val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(combined)
                                         viewModel.setAviatorData(prediction)
                                     }
                                 } else if (type == "canvas") {

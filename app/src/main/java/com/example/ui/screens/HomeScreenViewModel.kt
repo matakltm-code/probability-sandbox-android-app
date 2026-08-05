@@ -8,6 +8,8 @@ import com.example.data.local.SiteRule
 import com.example.data.local.ToolProfile
 import com.example.data.repository.SiteRuleRepository
 import com.example.data.repository.ToolProfileRepository
+import com.example.data.repository.GameHistoryRepository
+import com.example.data.local.GameHistory
 import com.example.data.local.Bookmark
 import com.example.data.repository.BookmarkRepository
 import kotlinx.coroutines.flow.Flow
@@ -25,6 +27,7 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     private val siteRuleRepository: SiteRuleRepository
     private val toolProfileRepository: ToolProfileRepository
     private val bookmarkRepository: BookmarkRepository
+    private val gameHistoryRepository: GameHistoryRepository
     val siteRules: StateFlow<List<SiteRule>>
     val bookmarks: StateFlow<List<Bookmark>>
     init {
@@ -32,6 +35,7 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
         siteRuleRepository = SiteRuleRepository(database.siteRuleDao())
         toolProfileRepository = ToolProfileRepository(database.toolProfileDao())
         bookmarkRepository = BookmarkRepository(database.bookmarkDao())
+        gameHistoryRepository = GameHistoryRepository(database.gameHistoryDao())
 
         siteRules = siteRuleRepository.allRules.stateIn(
             scope = viewModelScope,
@@ -218,6 +222,37 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     fun setDeepExtractionEnabled(enabled: Boolean) { _isDeepExtractionEnabled.value = enabled }
 
     // Repository operations
+
+    fun saveGameHistory(gameType: String, url: String, data: String) {
+        viewModelScope.launch {
+            // Avoid saving if it's the exact same data as the last saved for this game type
+            val recentList = if (gameType == "Keno") kenoDbHistory.value else aviatorDbHistory.value
+            val lastSavedData = recentList.lastOrNull()?.data
+            if (lastSavedData != data) {
+                val history = GameHistory(
+                    gameType = gameType,
+                    siteUrl = url,
+                    timestamp = System.currentTimeMillis(),
+                    data = data
+                )
+                gameHistoryRepository.insertGameHistory(history)
+                gameHistoryRepository.cleanupOldData()
+            }
+        }
+    }
+    
+    val kenoDbHistory: StateFlow<List<GameHistory>> = gameHistoryRepository.getGameHistory("Keno").stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
+    val aviatorDbHistory: StateFlow<List<GameHistory>> = gameHistoryRepository.getGameHistory("Aviator").stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = emptyList()
+    )
+
     fun insertSiteRule(rule: SiteRule) {
         viewModelScope.launch {
             siteRuleRepository.insertRule(rule)
