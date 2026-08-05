@@ -9,7 +9,6 @@ import com.example.data.local.ToolProfile
 import com.example.data.repository.SiteRuleRepository
 import com.example.data.repository.ToolProfileRepository
 import com.example.data.repository.GameHistoryRepository
-import com.example.data.local.GameHistory
 import com.example.data.local.Bookmark
 import com.example.data.repository.BookmarkRepository
 import kotlinx.coroutines.flow.Flow
@@ -67,103 +66,11 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     private val _activeTool = MutableStateFlow("Inactive")
     val activeTool: StateFlow<String> = _activeTool.asStateFlow()
 
-    private val _kenoData = MutableStateFlow("Ready to extract...")
-    val kenoData: StateFlow<String> = _kenoData.asStateFlow()
     
-    private val _kenoHistoryList = MutableStateFlow<List<Int>>(emptyList())
-    val kenoHistoryList: StateFlow<List<Int>> = _kenoHistoryList.asStateFlow()
 
-    fun updateKenoHistory(newItems: List<Int>) {
-        val currentList = _kenoHistoryList.value
-        if (currentList.isEmpty()) {
-            _kenoHistoryList.value = newItems
-            return
-        }
 
-        if (java.util.Collections.indexOfSubList(currentList, newItems) != -1) {
-            return // newItems is already fully contained in currentList
-        }
 
-        var endOverlap = 0
-        val maxPossibleOverlap = minOf(currentList.size, newItems.size)
-        
-        for (size in maxPossibleOverlap downTo 1) {
-            val suffix = currentList.takeLast(size)
-            val prefix = newItems.take(size)
-            if (suffix == prefix) {
-                endOverlap = size
-                break
-            }
-        }
 
-        var startOverlap = 0
-        for (size in maxPossibleOverlap downTo 1) {
-            val suffix = newItems.takeLast(size)
-            val prefix = currentList.take(size)
-            if (suffix == prefix) {
-                startOverlap = size
-                break
-            }
-        }
-
-        if (endOverlap >= startOverlap && endOverlap > 0) {
-            _kenoHistoryList.value = currentList + newItems.drop(endOverlap)
-        } else if (startOverlap > endOverlap && startOverlap > 0) {
-            _kenoHistoryList.value = newItems.dropLast(startOverlap) + currentList
-        } else {
-            // Check if there is any sublist match in newItems from currentList to avoid duplicate explosion
-            _kenoHistoryList.value = currentList + newItems
-        }
-    }
-
-    private val _aviatorData = MutableStateFlow("Ready to extract...")
-    val aviatorData: StateFlow<String> = _aviatorData.asStateFlow()
-
-    private val _aviatorHistoryList = MutableStateFlow<List<Double>>(emptyList())
-    val aviatorHistoryList: StateFlow<List<Double>> = _aviatorHistoryList.asStateFlow()
-
-    fun updateAviatorHistory(newItems: List<Double>) {
-        val currentList = _aviatorHistoryList.value
-        if (currentList.isEmpty()) {
-            _aviatorHistoryList.value = newItems
-            return
-        }
-
-        if (java.util.Collections.indexOfSubList(currentList, newItems) != -1) {
-            return // newItems is already fully contained in currentList
-        }
-
-        var endOverlap = 0
-        val maxPossibleOverlap = minOf(currentList.size, newItems.size)
-        
-        for (size in maxPossibleOverlap downTo 1) {
-            val suffix = currentList.takeLast(size)
-            val prefix = newItems.take(size)
-            if (suffix == prefix) {
-                endOverlap = size
-                break
-            }
-        }
-
-        var startOverlap = 0
-        for (size in maxPossibleOverlap downTo 1) {
-            val suffix = newItems.takeLast(size)
-            val prefix = currentList.take(size)
-            if (suffix == prefix) {
-                startOverlap = size
-                break
-            }
-        }
-
-        if (endOverlap >= startOverlap && endOverlap > 0) {
-            _aviatorHistoryList.value = currentList + newItems.drop(endOverlap)
-        } else if (startOverlap > endOverlap && startOverlap > 0) {
-            _aviatorHistoryList.value = newItems.dropLast(startOverlap) + currentList
-        } else {
-            // Check if there is any sublist match in newItems from currentList to avoid duplicate explosion
-            _aviatorHistoryList.value = currentList + newItems
-        }
-    }
 
 
     private val _liveCanvasData = MutableStateFlow("")
@@ -205,8 +112,6 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     fun setShowExitConfirmation(show: Boolean) { _showExitConfirmation.value = show }
     fun setPageLoading(loading: Boolean) { _isPageLoading.value = loading }
     fun setActiveTool(tool: String) { _activeTool.value = tool }
-    fun setKenoData(data: String) { _kenoData.value = data }
-    fun setAviatorData(data: String) { _aviatorData.value = data }
     fun setLiveCanvasData(data: String) { _liveCanvasData.value = data }
     fun setSelectionModeActive(active: Boolean) { _isSelectionModeActive.value = active }
     fun setShowMappingDialog(show: Boolean) { _showMappingDialog.value = show }
@@ -223,35 +128,8 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
 
     // Repository operations
 
-    fun saveGameHistory(gameType: String, url: String, data: String) {
-        viewModelScope.launch {
-            // Avoid saving if it's the exact same data as the last saved for this game type
-            val recentList = if (gameType == "Keno") kenoDbHistory.value else aviatorDbHistory.value
-            val lastSavedData = recentList.lastOrNull()?.data
-            if (lastSavedData != data) {
-                val history = GameHistory(
-                    gameType = gameType,
-                    siteUrl = url,
-                    timestamp = System.currentTimeMillis(),
-                    data = data
-                )
-                gameHistoryRepository.insertGameHistory(history)
-                gameHistoryRepository.cleanupOldData()
-            }
-        }
-    }
     
-    val kenoDbHistory: StateFlow<List<GameHistory>> = gameHistoryRepository.getGameHistory("Keno").stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
 
-    val aviatorDbHistory: StateFlow<List<GameHistory>> = gameHistoryRepository.getGameHistory("Aviator").stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = emptyList()
-    )
 
     fun insertSiteRule(rule: SiteRule) {
         viewModelScope.launch {

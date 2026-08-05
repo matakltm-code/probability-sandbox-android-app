@@ -1,14 +1,17 @@
-package com.example.engine
+import re
+import os
 
-import kotlin.math.sqrt
+# --- Patch KenoViewModel ---
+with open("app/src/main/java/com/example/ui/screens/KenoViewModel.kt", "r") as f:
+    keno_text = f.read()
 
-object PredictionEngine {
-    
-    /**
-     * Synthesizes Keno predictions using multiple strategies based on the last drawn numbers.
-     * Generates 5 tickets of 10 sorted numbers each.
-     */
-    fun synthesizeKenoTickets(history: List<Int>): String {
+# Add imports for math
+if "import kotlin.math.sqrt" not in keno_text:
+    keno_text = keno_text.replace("import kotlinx.coroutines.launch\n", "import kotlinx.coroutines.launch\nimport kotlin.math.sqrt\n")
+
+# Add synthesizeKenoTickets
+keno_engine_code = """
+    private fun synthesizeKenoTickets(history: List<Int>): String {
         if (history.isEmpty()) return "Not enough data to predict."
         
         // 1. Hot/Cold Frequency Analysis
@@ -46,13 +49,11 @@ object PredictionEngine {
         val ticket3 = (hot + cold + neutral).sorted()
         
         // Strategy 4: Sector/Neighbor Correlation Way
-        // Grouping by physical proximity (e.g. decades)
         val lastNumber = history.last()
         val decade = (lastNumber - 1) / 10
         val ticket4 = ((decade * 10 + 1)..(decade * 10 + 10)).toList()
         
         // Strategy 5: Markov Transition Way (Simplified)
-        // Selects numbers that frequently followed the most recently drawn number in history
         val transitionCounts = mutableMapOf<Int, Int>()
         for (i in 0 until history.size - 1) {
             if (history[i] == lastNumber) {
@@ -74,7 +75,8 @@ object PredictionEngine {
         val highPercent = if (history.isNotEmpty()) (highCount.toDouble() / history.size * 100).toInt() else 0
 
         return buildString {
-            append("--- Keno Matrix Engine ---\n")
+            append("--- Keno Matrix Engine (Local DB) ---\n")
+            append("Analysis: Last 14 days of historical data (${history.size} records)\n")
             append("Recent Drawn Number: ${history.last()}\n")
             append("Odd/Even Bias: ${oddPercent}% Odd\n")
             append("High/Low Bias: ${highPercent}% High (>40)\n\n")
@@ -83,15 +85,24 @@ object PredictionEngine {
             append("[T3 - Balanced]: ${ticket3.joinToString("-")}\n")
             append("[T4 - Sector Prox]: ${ticket4.joinToString("-")}\n")
             append("[T5 - Markov Chain]: ${ticket5.joinToString("-")}\n")
-            append("\n[Live Synced History (${history.size})]:\n")
-            append(history.joinToString(", "))
         }
     }
+}
+"""
+keno_text = keno_text.replace("        val prediction = PredictionEngine.synthesizeKenoTickets(combined)\n", "        val prediction = synthesizeKenoTickets(combined)\n")
+keno_text = re.sub(r'import com\.example\.engine\.PredictionEngine\n', '', keno_text)
+keno_text = re.sub(r'\n}$', keno_engine_code, keno_text)
 
-    /**
-     * Synthesizes Aviator predictions based on a sequence of historical multipliers.
-     */
-    fun synthesizeAviatorPrediction(history: List<Double>): String {
+with open("app/src/main/java/com/example/ui/screens/KenoViewModel.kt", "w") as f:
+    f.write(keno_text)
+
+
+# --- Patch AviatorViewModel ---
+with open("app/src/main/java/com/example/ui/screens/AviatorViewModel.kt", "r") as f:
+    aviator_text = f.read()
+
+aviator_engine_code = """
+    private fun synthesizeAviatorPrediction(history: List<Double>): String {
         if (history.isEmpty()) return "Not enough data to predict."
         
         // Aviator Brackets: Blue (< 2.0x), Purple (2.0x - 10.0x), Pink (>= 10.0x)
@@ -127,7 +138,8 @@ object PredictionEngine {
         val sniperTarget = if (probHigh > 0.15) 12.0 else 5.5
         
         return buildString {
-            append("--- Aviator Trend Engine ---\n")
+            append("--- Aviator Trend Engine (Local DB) ---\n")
+            append("Analysis: Last 14 days of historical data (${history.size} records)\n")
             append("Recent Multiplier: ${history.last()}x\n")
             append("Current Trend: $lastState\n")
             append("Risk of Early Crash (< 2.0x): ${(probLow * 100).toInt()}%\n")
@@ -138,8 +150,15 @@ object PredictionEngine {
             } else {
                 append("[Sniper Hunt]: Wait (Low Probability)\n")
             }
-            append("\n[Live Synced History (${history.size})]:\n")
-            append(history.joinToString(", ") { "${it}x" })
         }
     }
 }
+"""
+
+aviator_text = aviator_text.replace("        val prediction = PredictionEngine.synthesizeAviatorPrediction(combined)\n", "        val prediction = synthesizeAviatorPrediction(combined)\n")
+aviator_text = re.sub(r'import com\.example\.engine\.PredictionEngine\n', '', aviator_text)
+aviator_text = re.sub(r'\n}$', aviator_engine_code, aviator_text)
+
+with open("app/src/main/java/com/example/ui/screens/AviatorViewModel.kt", "w") as f:
+    f.write(aviator_text)
+

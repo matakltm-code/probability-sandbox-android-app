@@ -57,12 +57,14 @@ import com.example.MapperJS
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import java.util.Locale
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.lifecycle.viewmodel.compose.viewModel
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogViewModel, onNavigateToLogs: () -> Unit, onNavigateToDeveloper: () -> Unit, viewModel: HomeScreenViewModel = viewModel()) {
+fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogViewModel, onNavigateToLogs: () -> Unit, onNavigateToDeveloper: () -> Unit, viewModel: HomeScreenViewModel = viewModel(), kenoViewModel: KenoViewModel = viewModel(), aviatorViewModel: AviatorViewModel = viewModel()) {
+    val haptic = LocalHapticFeedback.current
     val primaryColor = MaterialTheme.colorScheme.primary
     val secondaryColor = MaterialTheme.colorScheme.secondary
     val isWebViewVisible by viewModel.isWebViewVisible.collectAsStateWithLifecycle()
@@ -75,8 +77,10 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
     val isPageLoading by viewModel.isPageLoading.collectAsStateWithLifecycle()
     val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle(initialValue = emptyList())
     val activeTool by viewModel.activeTool.collectAsStateWithLifecycle()
-    val kenoData by viewModel.kenoData.collectAsStateWithLifecycle()
-    val aviatorData by viewModel.aviatorData.collectAsStateWithLifecycle()
+    val kenoData by kenoViewModel.kenoData.collectAsStateWithLifecycle()
+    val isKenoProcessing by kenoViewModel.isProcessingData.collectAsStateWithLifecycle()
+    val isAviatorProcessing by aviatorViewModel.isProcessingData.collectAsStateWithLifecycle()
+    val aviatorData by aviatorViewModel.aviatorData.collectAsStateWithLifecycle()
     val liveCanvasData by viewModel.liveCanvasData.collectAsStateWithLifecycle()
     val isSelectionModeActive by viewModel.isSelectionModeActive.collectAsStateWithLifecycle()
     val showMappingDialog by viewModel.showMappingDialog.collectAsStateWithLifecycle()
@@ -647,35 +651,9 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 coroutineScope.launch {
                                     val tool = viewModel.activeTool.value
                                     if (tool == "Keno") {
-                                        val newHistory = data.split(",").mapNotNull { it.trim().toIntOrNull() }
-                                        viewModel.updateKenoHistory(newHistory)
-                                        viewModel.saveGameHistory("Keno", viewModel.targetUrl.value, data)
-                                        
-                                        val dbHistoryList = viewModel.kenoDbHistory.value.flatMap { it.data.split(",").mapNotNull { s -> s.trim().toIntOrNull() } }
-                                        val currentHistory = viewModel.kenoHistoryList.value
-                                        val combined = dbHistoryList + currentHistory
-                                        
-                                        val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(combined)
-                                        viewModel.setKenoData(prediction)
+                                        kenoViewModel.synthesizeAndSetPrediction(data, viewModel.targetUrl.value)
                                     } else if (tool == "Aviator") {
-                                        val newHistory = data.split(",").mapNotNull { it.trim().replace("x", "").toDoubleOrNull() }
-                                        viewModel.updateAviatorHistory(newHistory)
-                                        viewModel.saveGameHistory("Aviator", viewModel.targetUrl.value, data)
-                                        
-                                        val dbHistoryList = viewModel.aviatorDbHistory.value.flatMap { it.data.split(",").mapNotNull { s -> s.trim().replace("x", "").toDoubleOrNull() } }
-                                        val currentHistory = viewModel.aviatorHistoryList.value
-                                        
-                                        // Simple combination, avoiding immediate duplicates
-                                        val combined = mutableListOf<Double>()
-                                        combined.addAll(dbHistoryList)
-                                        for (item in currentHistory) {
-                                            if (combined.isEmpty() || combined.last() != item) {
-                                                combined.add(item)
-                                            }
-                                        }
-                                        
-                                        val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(combined)
-                                        viewModel.setAviatorData(prediction)
+                                        aviatorViewModel.synthesizeAndSetPrediction(data, viewModel.targetUrl.value)
                                     }
                                 }
                             }
@@ -687,35 +665,9 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 if (type == "dom") {
                                     val data = data1
                                     if (tool == "Keno") {
-                                        val newHistory = data.split(",").mapNotNull { it.trim().toIntOrNull() }
-                                        viewModel.updateKenoHistory(newHistory)
-                                        viewModel.saveGameHistory("Keno", viewModel.targetUrl.value, data)
-                                        
-                                        val dbHistoryList = viewModel.kenoDbHistory.value.flatMap { it.data.split(",").mapNotNull { s -> s.trim().toIntOrNull() } }
-                                        val currentHistory = viewModel.kenoHistoryList.value
-                                        val combined = dbHistoryList + currentHistory
-                                        
-                                        val prediction = com.example.engine.PredictionEngine.synthesizeKenoTickets(combined)
-                                        viewModel.setKenoData(prediction)
+                                        kenoViewModel.synthesizeAndSetPrediction(data, viewModel.targetUrl.value)
                                     } else if (tool == "Aviator") {
-                                        val newHistory = data.split(",").mapNotNull { it.trim().replace("x", "").toDoubleOrNull() }
-                                        viewModel.updateAviatorHistory(newHistory)
-                                        viewModel.saveGameHistory("Aviator", viewModel.targetUrl.value, data)
-                                        
-                                        val dbHistoryList = viewModel.aviatorDbHistory.value.flatMap { it.data.split(",").mapNotNull { s -> s.trim().replace("x", "").toDoubleOrNull() } }
-                                        val currentHistory = viewModel.aviatorHistoryList.value
-                                        
-                                        // Simple combination, avoiding immediate duplicates
-                                        val combined = mutableListOf<Double>()
-                                        combined.addAll(dbHistoryList)
-                                        for (item in currentHistory) {
-                                            if (combined.isEmpty() || combined.last() != item) {
-                                                combined.add(item)
-                                            }
-                                        }
-                                        
-                                        val prediction = com.example.engine.PredictionEngine.synthesizeAviatorPrediction(combined)
-                                        viewModel.setAviatorData(prediction)
+                                        aviatorViewModel.synthesizeAndSetPrediction(data, viewModel.targetUrl.value)
                                     }
                                 } else if (type == "canvas") {
                                     val data = data1
@@ -923,7 +875,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                                             "(function() { return 'extracted_keno_data'; })();"
                                                         ) { result ->
                                                             val newNumbers = (1..80).shuffled().take(5).joinToString("-")
-                                                            viewModel.setKenoData("Hot Pairs: 12-45, 7-22\nFreq: 12 (5x), 45 (4x)\nRecent Pattern: $newNumbers\nExtracted: $result")
+                                                            kenoViewModel.setKenoData("Hot Pairs: 12-45, 7-22\nFreq: 12 (5x), 45 (4x)\nRecent Pattern: $newNumbers\nExtracted: $result")
                                                             activityLogViewModel.logActivity("Extracted Keno pattern: $newNumbers")
                                                         }
                                                     } else if (activeTool == "Aviator") {
@@ -931,7 +883,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                                             "(function() { return 'extracted_aviator_data'; })();"
                                                         ) { result ->
                                                             val multiplier = String.format(Locale.US, "%.2fx", kotlin.random.Random.nextDouble(1.0, 10.0))
-                                                            viewModel.setAviatorData("Trend: Upward\nLast Multipliers: $multiplier, 1.25x, 2.10x\nExtracted: $result")
+                                                            aviatorViewModel.setAviatorData("Trend: Upward\nLast Multipliers: $multiplier, 1.25x, 2.10x\nExtracted: $result")
                                                             activityLogViewModel.logActivity("Extracted Aviator trend: $multiplier")
                                                         }
                                                     }
@@ -939,6 +891,7 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                             }
                                         },
                                         onLongClick = {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
                                             webViewRef?.reload()
                                             activityLogViewModel.logActivity("Reloaded web page")
                                         }
@@ -1034,15 +987,31 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                 )
                                 Box(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
                                     if (activeTool == "Keno") {
-                                    Text(
-                                        text = kenoData,
-                                        color = com.example.ui.theme.KenoGreen,
-                                        fontSize = 14.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        lineHeight = 20.sp
-                                    )
+                                    Column {
+                                        if (isKenoProcessing) {
+                                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = com.example.ui.theme.KenoGreen, strokeWidth = 2.dp)
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("Processing local history...", color = com.example.ui.theme.KenoGreen, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                                            }
+                                        }
+                                        Text(
+                                            text = kenoData,
+                                            color = com.example.ui.theme.KenoGreen,
+                                            fontSize = 14.sp,
+                                            fontFamily = FontFamily.Monospace,
+                                            lineHeight = 20.sp
+                                        )
+                                    }
                                 } else if (activeTool == "Aviator") {
                                     Column {
+                                        if (isAviatorProcessing) {
+                                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
+                                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = com.example.ui.theme.AviatorYellow, strokeWidth = 2.dp)
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text("Processing local history...", color = com.example.ui.theme.AviatorYellow, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                                            }
+                                        }
                                         Text(
                                             text = aviatorData,
                                             color = com.example.ui.theme.AviatorYellow,
