@@ -53,7 +53,6 @@ import kotlinx.coroutines.launch
 import com.example.data.local.AppDatabase
 import com.example.data.local.SiteRule
 import com.example.data.local.ToolProfile
-import com.example.MapperJS
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.platform.LocalContext
@@ -870,23 +869,8 @@ fun HomeScreen(modifier: Modifier = Modifier, activityLogViewModel: ActivityLogV
                                                     webViewRef?.evaluateJavascript(broadcastScript, null)
                                                     activityLogViewModel.logActivity("Manual extracted $activeTool patterns")
                                                 } else {
-                                                    if (activeTool == "Keno") {
-                                                        webViewRef?.evaluateJavascript(
-                                                            "(function() { return 'extracted_keno_data'; })();"
-                                                        ) { result ->
-                                                            val newNumbers = (1..80).shuffled().take(5).joinToString("-")
-                                                            kenoViewModel.setKenoData("Hot Pairs: 12-45, 7-22\nFreq: 12 (5x), 45 (4x)\nRecent Pattern: $newNumbers\nExtracted: $result")
-                                                            activityLogViewModel.logActivity("Extracted Keno pattern: $newNumbers")
-                                                        }
-                                                    } else if (activeTool == "Aviator") {
-                                                        webViewRef?.evaluateJavascript(
-                                                            "(function() { return 'extracted_aviator_data'; })();"
-                                                        ) { result ->
-                                                            val multiplier = String.format(Locale.US, "%.2fx", kotlin.random.Random.nextDouble(1.0, 10.0))
-                                                            aviatorViewModel.setAviatorData("Trend: Upward\nLast Multipliers: $multiplier, 1.25x, 2.10x\nExtracted: $result")
-                                                            activityLogViewModel.logActivity("Extracted Aviator trend: $multiplier")
-                                                        }
-                                                    }
+                                                    activityLogViewModel.logActivity("No CSS selector mapped for $activeTool. Please map first.")
+                                                    viewModel.setShowMappingDialog(true)
                                                 }
                                             }
                                         },

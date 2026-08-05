@@ -8,7 +8,6 @@ import com.example.data.local.SiteRule
 import com.example.data.local.ToolProfile
 import com.example.data.repository.SiteRuleRepository
 import com.example.data.repository.ToolProfileRepository
-import com.example.data.repository.GameHistoryRepository
 import com.example.data.local.Bookmark
 import com.example.data.repository.BookmarkRepository
 import kotlinx.coroutines.flow.Flow
@@ -26,7 +25,6 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
     private val siteRuleRepository: SiteRuleRepository
     private val toolProfileRepository: ToolProfileRepository
     private val bookmarkRepository: BookmarkRepository
-    private val gameHistoryRepository: GameHistoryRepository
     val siteRules: StateFlow<List<SiteRule>>
     val bookmarks: StateFlow<List<Bookmark>>
     init {
@@ -34,7 +32,6 @@ class HomeScreenViewModel(application: Application) : AndroidViewModel(applicati
         siteRuleRepository = SiteRuleRepository(database.siteRuleDao())
         toolProfileRepository = ToolProfileRepository(database.toolProfileDao())
         bookmarkRepository = BookmarkRepository(database.bookmarkDao())
-        gameHistoryRepository = GameHistoryRepository(database.gameHistoryDao())
 
         siteRules = siteRuleRepository.allRules.stateIn(
             scope = viewModelScope,
